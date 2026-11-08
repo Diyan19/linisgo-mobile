@@ -1,0 +1,93 @@
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1 class="page-title">User Accounts Management</h1>
+      <p class="page-subtitle">Inspect user accounts, manage warnings, enforce suspensions, and audit activity.</p>
+    </div>
+
+    <!-- Searchbar -->
+    <ion-searchbar
+      [value]="searchQuery()"
+      placeholder="Search by name, ID, bio, or municipality..."
+      (ionInput)="onSearch($event)"
+      class="custom-search"
+    ></ion-searchbar>
+
+    <!-- State Filter Segment -->
+    <ion-segment [value]="selectedFilter()" (ionChange)="onFilterChange($event)" class="filter-segment">
+      <ion-segment-button value="all">
+        <ion-label>All ({{ dataService.usersSignal().length }})</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="active">
+        <ion-label>Active</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="suspended">
+        <ion-label>Suspended</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="deactivated">
+        <ion-label>Deactivated</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <!-- User List -->
+    <div class="users-list">
+      @for (user of filteredUsers(); track user.id) {
+        <ion-card class="user-card" [routerLink]="['/admin/user', user.id]">
+          <ion-card-content>
+            <div class="card-header-row">
+              <div class="user-meta">
+                <span class="user-name">{{ user.name }}</span>
+                <span class="user-id">#{{ user.id }}</span>
+              </div>
+              <div class="status-badges">
+                <span class="tag-badge" [class.provider]="user.tag === 'provider'">
+                  {{ user.tag === 'provider' ? 'Service Provider' : 'Client' }}
+                </span>
+                <span class="state-badge" [class.state-active]="user.state === 'active'"
+                  [class.state-suspended]="user.state === 'suspended'"
+                  [class.state-deactivated]="user.state === 'deactivated'">
+                  {{ user.state }}
+                </span>
+              </div>
+            </div>
+
+            <p class="user-bio">{{ user.bio }}</p>
+
+            <div class="card-footer-row">
+              <div class="details-chips">
+                @if (user.approxLocation) {
+                  <span class="info-chip">
+                    <ion-icon name="location-outline"></ion-icon>
+                    {{ user.approxLocation.label || 'Mindoro' }}
+                  </span>
+                }
+                @if (user.warningCount && user.warningCount > 0) {
+                  <span class="warning-chip">
+                    <ion-icon name="warning-outline"></ion-icon>
+                    {{ user.warningCount }} Warning{{ user.warningCount > 1 ? 's' : '' }}
+                  </span>
+                }
+                @if (user.state === 'suspended') {
+                  <span class="suspension-chip">
+                    <ion-icon name="ban-outline"></ion-icon>
+                    {{ user.suspensionType === 'temporary' ? 'Temp: ' + user.suspendedUntil : 'Indefinite' }}
+                  </span>
+                }
+              </div>
+              <ion-button fill="clear" size="small" class="manage-btn">
+                Manage
+                <ion-icon name="chevron-forward-outline" slot="end"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="person-outline"></ion-icon>
+          <h3>No Users Found</h3>
+          <p>No user accounts match your search or state filter criteria.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

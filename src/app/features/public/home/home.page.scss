@@ -1,0 +1,136 @@
+.content-wrapper {
+  max-width: 540px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.hero-section {
+  background: #f5f7f8;
+  border: 1px solid #d3dce2;
+  border-radius: 16px;
+  padding: 16px 14px 20px 14px;
+  margin-bottom: 20px;
+}
+
+.hero-placeholder {
+  height: 95px;
+  background: #edf1f3;
+  border: 1px dashed #bfcbd1;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.placeholder-tag {
+  font-size: 0.8rem;
+  color: #7c8993;
+}
+
+.hero-badge {
+  margin-bottom: 8px;
+
+  ion-badge {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 12px;
+  }
+}
+
+.hero-heading {
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #24313b;
+  margin: 0 0 8px 0;
+}
+
+.hero-subtitle {
+  font-size: 0.92rem;
+  color: #556672;
+  line-height: 1.45;
+  margin: 0 0 16px 0;
+}
+
+.hero-cta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .hero-btn {
+    --border-radius: 10px;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.section {
+  margin-bottom: 22px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #24313b;
+  margin: 0 0 10px 0;
+}
+
+.see-all-link {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2b4354;
+  text-decoration: none;
+}
+
+.category-grid {
+  padding: 0;
+}
+
+.cat-card {
+  width: 100%;
+  min-height: 56px;
+  background: #ffffff;
+  border: 1px solid #d3dce2;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #f3f6f7;
+    border-color: #526f83;
+  }
+
+  .cat-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #283b47;
+  }
+
+  .cat-arrow {
+    font-size: 1.1rem;
+    color: #7b8891;
+  }
+}
+
+.register-section {
+  margin-top: 10px;
+
+  ion-button {
+    --border-radius: 10px;
+    font-weight: 700;
+  }
+}

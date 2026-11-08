@@ -1,0 +1,70 @@
+<ion-header [translucent]="true" class="admin-header">
+  <ion-toolbar class="admin-toolbar">
+    <ion-title>
+      <div class="brand-title">
+        <span class="brand-name">LinisGo Finder</span>
+        <span class="admin-pill">ADMIN</span>
+      </div>
+    </ion-title>
+    <ion-buttons slot="end">
+      <!-- Admin Notifications Bell with Badge -->
+      <ion-button routerLink="/admin/notifications" class="header-icon-btn" aria-label="Admin Notifications">
+        <ion-icon name="notifications-outline"></ion-icon>
+        @if (dataService.unreadAdminNotificationsCount() > 0) {
+          <ion-badge color="danger" class="header-badge">
+            {{ dataService.unreadAdminNotificationsCount() }}
+          </ion-badge>
+        }
+      </ion-button>
+
+      <!-- System Status shortcut -->
+      <ion-button routerLink="/admin/system-status" class="header-icon-btn" aria-label="System Status">
+        <ion-icon name="hardware-chip-outline"></ion-icon>
+      </ion-button>
+
+      <!-- Logout -->
+      <ion-button (click)="onLogout()" class="header-icon-btn" aria-label="Log Out">
+        <ion-icon name="log-out-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-tabs class="admin-tabs-container">
+  <ion-tab-bar slot="bottom" class="custom-admin-tab-bar">
+    <ion-tab-button tab="dashboard" href="/admin/tabs/dashboard">
+      <ion-icon name="speedometer-outline"></ion-icon>
+      <ion-label>Dashboard</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="users" href="/admin/tabs/users">
+      <ion-icon name="people-outline"></ion-icon>
+      <ion-label>Users</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="posts" href="/admin/tabs/posts">
+      <ion-icon name="documents-outline"></ion-icon>
+      <ion-label>Posts</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="reports" href="/admin/tabs/reports">
+      <ion-icon name="shield-alert-outline"></ion-icon>
+      <ion-label>Reports</ion-label>
+      @if (dataService.adminStats().pendingReports > 0) {
+        <ion-badge color="danger" class="tab-badge">
+          {{ dataService.adminStats().pendingReports }}
+        </ion-badge>
+      }
+    </ion-tab-button>
+
+    <ion-tab-button tab="more" href="/admin/tabs/more">
+      <ion-icon name="ellipsis-horizontal-circle-outline"></ion-icon>
+      <ion-label>More</ion-label>
+      @if (dataService.adminStats().pendingAppeals > 0) {
+        <ion-badge color="warning" class="tab-badge">
+          {{ dataService.adminStats().pendingAppeals }}
+        </ion-badge>
+      }
+    </ion-tab-button>
+  </ion-tab-bar>
+</ion-tabs>

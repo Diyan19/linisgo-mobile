@@ -1,0 +1,192 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/reports" text="Reports"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Report Investigation</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  @if (report(); as r) {
+    <div class="content-wrapper">
+      <!-- Report Status Header Card -->
+      <ion-card class="status-card">
+        <ion-card-content>
+          <div class="status-top-row">
+            <span class="report-id">Report #{{ r.id }}</span>
+            <span class="status-badge" [class.status-pending]="r.status === 'Pending'"
+              [class.status-review]="r.status === 'Under Review'"
+              [class.status-resolved]="r.status === 'Resolved'"
+              [class.status-dismissed]="r.status === 'Dismissed'">
+              {{ r.status }}
+            </span>
+          </div>
+
+          <div class="allegation-box">
+            <span class="allegation-label">Report Reason</span>
+            <h2 class="allegation-title">{{ r.reason }}</h2>
+            <p class="allegation-text">"{{ r.explanation }}"</p>
+          </div>
+
+          <div class="meta-row">
+            <span>Reporter ID: <b>{{ r.reporterId }}</b></span>
+            <span>Date Filed: <b>{{ r.createdAt }}</b></span>
+          </div>
+
+          @if (r.decisionNotes) {
+            <div class="decision-box">
+              <span class="decision-label">Administrative Finding / Decision Notes</span>
+              <p class="decision-text">"{{ r.decisionNotes }}"</p>
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Reported Target Context Section -->
+      <div class="target-section">
+        <h3 class="section-title">
+          Reported Subject ({{ r.targetType | uppercase }})
+        </h3>
+
+        @if (r.targetType === 'user') {
+          @if (reportedUser(); as u) {
+            <ion-card class="target-card" [routerLink]="['/admin/user', u.id]">
+              <ion-card-content>
+                <div class="target-header">
+                  <div class="avatar-icon">
+                    <ion-icon name="person-outline"></ion-icon>
+                  </div>
+                  <div class="target-info">
+                    <h4 class="target-name">{{ u.name }} (#{{ u.id }})</h4>
+                    <span class="target-tag">{{ u.tag === 'provider' ? 'Service Provider' : 'Client' }}</span>
+                  </div>
+                  <ion-icon name="open-outline" class="open-icon"></ion-icon>
+                </div>
+                <p class="target-bio">{{ u.bio }}</p>
+                <div class="target-meta">
+                  <span>State: <b>{{ u.state }}</b></span>
+                  <span>Warnings: <b>{{ u.warningCount || 0 }}</b></span>
+                </div>
+              </ion-card-content>
+            </ion-card>
+          } @else {
+            <div class="empty-target">Reported user #{{ r.targetId }} could not be found.</div>
+          }
+        }
+
+        @if (r.targetType === 'post') {
+          @if (reportedPost(); as p) {
+            <ion-card class="target-card" [routerLink]="['/admin/post', p.id]">
+              <ion-card-content>
+                <div class="target-header">
+                  <div class="avatar-icon post-type-icon">
+                    <ion-icon name="documents-outline"></ion-icon>
+                  </div>
+                  <div class="target-info">
+                    <h4 class="target-name">{{ p.title }}</h4>
+                    <span class="target-tag">{{ p.type === 'offer' ? 'Service Offer' : 'Service Request' }} (Author: {{ p.authorName }})</span>
+                  </div>
+                  <ion-icon name="open-outline" class="open-icon"></ion-icon>
+                </div>
+                <p class="target-bio">{{ p.description }}</p>
+                <div class="target-meta">
+                  <span>Category: <b>{{ p.category }}</b></span>
+                  <span>Rate: <b>₱{{ p.amount || 'Negotiable' }}</b></span>
+                  <span>Moderated: <b>{{ p.moderated ? 'YES (Hidden)' : 'NO (Visible)' }}</b></span>
+                </div>
+              </ion-card-content>
+            </ion-card>
+          } @else {
+            <div class="empty-target">Reported post #{{ r.targetId }} could not be found.</div>
+          }
+        }
+      </div>
+
+      <!-- Action Panel -->
+      <ion-card class="decision-card">
+        <ion-card-header>
+          <ion-card-title>Report Review Actions</ion-card-title>
+          <ion-card-subtitle>
+            Resolving or dismissing a report records an administrative finding. To moderate the target (warn, suspend, or hide), visit the target review page directly.
+          </ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          @if (activeAction() === null) {
+            <div class="actions-row">
+              @if (r.status === 'Pending') {
+                <ion-button color="warning" expand="block" (click)="onStartReview()">
+                  <ion-icon name="time-outline" slot="start"></ion-icon>
+                  Mark as Under Review
+                </ion-button>
+              }
+
+              @if (r.status !== 'Resolved') {
+                <ion-button color="success" expand="block" (click)="openDecision('resolve')">
+                  <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+                  Resolve Report with Findings
+                </ion-button>
+              }
+
+              @if (r.status !== 'Dismissed') {
+                <ion-button color="medium" fill="outline" expand="block" (click)="openDecision('dismiss')">
+                  <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+                  Dismiss Report
+                </ion-button>
+              }
+            </div>
+          } @else {
+            <div class="action-form">
+              <h4 class="form-title" [class.text-success]="activeAction() === 'resolve'" [class.text-medium]="activeAction() === 'dismiss'">
+                {{ activeAction() === 'resolve' ? 'Resolve Report' : 'Dismiss Report' }}
+              </h4>
+              <p class="form-desc">
+                {{ activeAction() === 'resolve' ? 'Enter written decision rationale to record this complaint as resolved.' : 'Enter justification for dismissing this complaint without sanctions.' }}
+              </p>
+
+              <div class="form-group">
+                <label>Written Administrative Rationale (Required)</label>
+                <ion-textarea
+                  [value]="decisionNotes"
+                  (ionInput)="decisionNotes = $event.detail.value || ''"
+                  placeholder="Record formal decision rationale..."
+                  rows="3"
+                  class="custom-textarea"
+                ></ion-textarea>
+              </div>
+
+              <div class="form-buttons">
+                <ion-button fill="outline" color="medium" (click)="cancelDecision()">
+                  Cancel
+                </ion-button>
+
+                @if (activeAction() === 'resolve') {
+                  <ion-button color="success" [disabled]="!decisionNotes.trim()" (click)="submitResolve()">
+                    Confirm Resolution
+                  </ion-button>
+                } @else {
+                  <ion-button color="medium" [disabled]="!decisionNotes.trim()" (click)="submitDismiss()">
+                    Confirm Dismissal
+                  </ion-button>
+                }
+              </div>
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+    </div>
+  } @else {
+    <div class="not-found">
+      <h3>Report Not Found</h3>
+      <p>The specified report ID could not be located in the moderation database.</p>
+      <ion-button routerLink="/admin/tabs/reports" fill="outline">Return to Reports</ion-button>
+    </div>
+  }
+
+  <ion-toast
+    [isOpen]="isToastOpen"
+    [message]="toastMessage"
+    [duration]="2500"
+    (didDismiss)="isToastOpen = false"
+  ></ion-toast>
+</ion-content>

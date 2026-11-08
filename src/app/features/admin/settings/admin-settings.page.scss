@@ -1,0 +1,140 @@
+.page-content {
+  --background: #f8fafc;
+}
+
+.content-wrapper {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.page-header {
+  margin-bottom: 16px;
+
+  .page-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+  }
+
+  .page-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+.settings-card, .reset-card {
+  margin: 0 0 16px 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: none;
+
+  .card-icon-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    ion-icon {
+      font-size: 1.3rem;
+      color: #0f172a;
+    }
+
+    ion-card-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+  }
+
+  ion-card-subtitle {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .label {
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .val {
+    color: #0f172a;
+    font-weight: 500;
+
+    &.text-danger {
+      color: #dc2626;
+    }
+  }
+}
+
+.security-card {
+  margin: 0 0 16px 0;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: none;
+
+  ion-card-content {
+    padding: 14px;
+  }
+
+  .security-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+
+    ion-icon {
+      font-size: 1.2rem;
+      color: #475569;
+    }
+
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+  }
+
+  .security-text {
+    font-size: 0.8rem;
+    color: #475569;
+    line-height: 1.5;
+    margin: 0;
+  }
+}
+
+.reset-card {
+  .reset-desc {
+    font-size: 0.85rem;
+    color: #475569;
+    margin: 0 0 14px 0;
+    line-height: 1.4;
+  }
+}
+
+.logout-box {
+  margin-top: 10px;
+}

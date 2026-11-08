@@ -1,0 +1,104 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/feed" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Post Details</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    @if (post) {
+      <div class="detail-card">
+        <div class="photo-banner">
+          <span class="placeholder-tag">[ Post Photo / Work Gallery ]</span>
+        </div>
+
+        <div class="detail-body">
+          <div class="meta-row">
+            <ion-badge [color]="post.type === 'offer' ? 'primary' : 'tertiary'" class="type-badge">
+              {{ post.type === 'offer' ? 'Service Offer' : 'Service Request' }}
+            </ion-badge>
+            <span class="post-date">{{ post.createdAt }}</span>
+          </div>
+
+          <h1 class="post-title">{{ post.title }}</h1>
+
+          <!-- Author Info Box with link to profile -->
+          @if (author) {
+            <div class="author-box" [routerLink]="['/user-profile', author.id]">
+              <div class="author-avatar">{{ authorInitial }}</div>
+              <div class="author-info">
+                <span class="author-name">{{ author.name }}</span>
+                <span class="author-tag">{{ author.tag === 'client' ? 'Client' : 'Service Provider' }} · View public profile ›</span>
+              </div>
+            </div>
+          }
+
+          <div class="divider"></div>
+
+          <h2 class="sub-heading">Cleaning Details</h2>
+          <p class="post-desc">{{ post.description }}</p>
+
+          <div class="spec-list">
+            <div class="spec-item">
+              <span class="spec-label">Category:</span>
+              <span class="spec-value">{{ post.category }} cleaning</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">{{ post.type === 'request' ? 'Budget' : 'Price / Rate' }}:</span>
+              <span class="spec-value price-val">{{ formattedAmount }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Status:</span>
+              <span class="spec-value">{{ post.status }}</span>
+            </div>
+          </div>
+
+          <div class="action-panel">
+            <ion-button
+              expand="block"
+              color="primary"
+              [routerLink]="['/user-profile', post.authorId]"
+            >
+              View Author's Public Profile
+            </ion-button>
+
+            @if (!isOwnPost) {
+              <div class="detail-actions-row">
+                <button class="detail-action-btn" (click)="toggleSave()">
+                  <ion-icon [name]="isSaved ? 'bookmark' : 'bookmark-outline'" [class.saved]="isSaved"></ion-icon>
+                  <span>{{ isSaved ? 'Saved Post' : 'Save Post' }}</span>
+                </button>
+
+                <button class="detail-action-btn report-btn" (click)="reportPost()">
+                  <ion-icon name="flag-outline"></ion-icon>
+                  <span>Report Post</span>
+                </button>
+              </div>
+            }
+
+            @if (!authService.isLoggedIn()) {
+              <ion-button
+                expand="block"
+                fill="outline"
+                color="secondary"
+                routerLink="/login"
+                class="login-cta-btn"
+              >
+                Sign in to Contact Author
+              </ion-button>
+            }
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="not-found-card">
+        <h2>Post Not Found</h2>
+        <p>The post you are looking for may have been removed or does not exist.</p>
+        <ion-button routerLink="/tabs/feed" color="primary">Return to Feed</ion-button>
+      </div>
+    }
+  </div>
+</ion-content>

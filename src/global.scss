@@ -1,0 +1,42 @@
+/* Core Ionic CSS */
+@import "@ionic/angular/css/core.css";
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+/* LinisGo Finder Theme Palette */
+:root {
+  --ion-color-primary: #2b4354;
+  --ion-color-primary-rgb: 43, 67, 84;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #263b4a;
+  --ion-color-primary-tint: #405665;
+
+  --ion-color-secondary: #526f83;
+  --ion-color-secondary-rgb: 82, 111, 131;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #486273;
+  --ion-color-secondary-tint: #637d8f;
+
+  --ion-color-light: #f5f7f8;
+  --ion-color-light-rgb: 245, 247, 248;
+  --ion-color-light-contrast: #24313b;
+  --ion-color-light-contrast-rgb: 36, 49, 59;
+  --ion-color-light-shade: #d8dadb;
+  --ion-color-light-tint: #f6f8f9;
+
+  --ion-background-color: #f7f9fa;
+  --ion-text-color: #24313b;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}

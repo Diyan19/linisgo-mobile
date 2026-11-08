@@ -1,0 +1,90 @@
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="search-header">
+      <h1 class="page-title">Search & Discover</h1>
+      <p class="page-subtitle">Search names, cleaning services, and household needs across Oriental Mindoro.</p>
+    </div>
+
+    <!-- Search Controls -->
+    <div class="search-box">
+      <ion-searchbar
+        [value]="dataService.searchQuery()"
+        placeholder="Type to search posts, providers, or clients..."
+        (ionInput)="onSearchChange($event)"
+        class="custom-searchbar"
+        debounce="150"
+      ></ion-searchbar>
+
+      <div class="chip-row">
+        <button
+          class="filter-chip"
+          [class.active]="dataService.selectedTag() === 'all'"
+          (click)="onTagChange('all')"
+        >
+          All Tags
+        </button>
+        <button
+          class="filter-chip"
+          [class.active]="dataService.selectedTag() === 'client'"
+          (click)="onTagChange('client')"
+        >
+          Clients Only
+        </button>
+        <button
+          class="filter-chip"
+          [class.active]="dataService.selectedTag() === 'provider'"
+          (click)="onTagChange('provider')"
+        >
+          Providers Only
+        </button>
+      </div>
+    </div>
+
+    <!-- Matching Posts -->
+    <section class="section">
+      <h2 class="section-title">
+        Matching Posts ({{ dataService.filteredPosts().length }})
+      </h2>
+
+      @for (post of dataService.filteredPosts(); track post.id) {
+        <app-post-card [post]="post" [showAuthor]="true"></app-post-card>
+      } @empty {
+        <div class="empty-box">No matching posts found.</div>
+      }
+    </section>
+
+    <!-- Matching Users -->
+    <section class="section">
+      <h2 class="section-title">
+        Matching Users ({{ dataService.filteredUsers().length }})
+      </h2>
+
+      <div class="users-list">
+        @for (user of dataService.filteredUsers(); track user.id) {
+          <div class="user-card">
+            <div class="avatar-wrap">
+              <div class="avatar-badge">{{ getInitial(user.name) }}</div>
+            </div>
+            <div class="user-body">
+              <div class="name-line">
+                <span class="user-name">{{ user.name }}</span>
+                <ion-badge [color]="user.available ? 'success' : 'medium'">
+                  {{ user.available ? 'Available' : 'Unavailable' }}
+                </ion-badge>
+              </div>
+              <span class="user-sub">{{ getTagLabel(user.tag) }} · {{ user.approxLocation?.label }}</span>
+              <p class="user-bio">{{ user.bio }}</p>
+            </div>
+            <div class="user-action">
+              <ion-button size="small" fill="outline" color="primary" [routerLink]="['/user-profile', user.id]">
+                Profile ›
+              </ion-button>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-box">No matching users found.</div>
+        }
+      </div>
+    </section>
+  </div>
+</ion-content>

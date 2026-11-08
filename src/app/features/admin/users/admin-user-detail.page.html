@@ -1,0 +1,270 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/users" text="Users"></ion-back-button>
+    </ion-buttons>
+    <ion-title>User Review</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  @if (user(); as u) {
+    <div class="content-wrapper">
+      <!-- User Overview Card -->
+      <ion-card class="overview-card">
+        <ion-card-content>
+          <div class="user-hero">
+            <div class="avatar-box">
+              <ion-icon name="person-outline"></ion-icon>
+            </div>
+            <div class="user-hero-info">
+              <h2 class="user-name">{{ u.name }}</h2>
+              <span class="user-id">User ID: {{ u.id }}</span>
+              <div class="badge-row">
+                <span class="role-badge" [class.provider]="u.tag === 'provider'">
+                  {{ u.tag === 'provider' ? 'Service Provider' : 'Household Client' }}
+                </span>
+                <span class="state-badge" [class.state-active]="u.state === 'active'"
+                  [class.state-suspended]="u.state === 'suspended'"
+                  [class.state-deactivated]="u.state === 'deactivated'">
+                  {{ u.state }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bio-section">
+            <label class="info-label">Profile Biography</label>
+            <p class="bio-text">{{ u.bio || 'No bio provided.' }}</p>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Location Anchor</span>
+              <span class="meta-val">
+                <ion-icon name="location-outline"></ion-icon>
+                {{ u.approxLocation?.label || 'Not specified' }}
+              </span>
+            </div>
+
+            <div class="meta-item">
+              <span class="meta-label">Phone Contact</span>
+              <span class="meta-val">
+                <ion-icon name="call-outline"></ion-icon>
+                {{ u.contactPhone || 'None' }} ({{ u.showPhone ? 'Public' : 'Hidden' }})
+              </span>
+            </div>
+
+            <div class="meta-item">
+              <span class="meta-label">Facebook Profile</span>
+              <span class="meta-val">
+                <ion-icon name="logo-facebook"></ion-icon>
+                {{ u.contactFacebook || 'None' }} ({{ u.showFacebook ? 'Public' : 'Hidden' }})
+              </span>
+            </div>
+
+            <div class="meta-item">
+              <span class="meta-label">Public Map Marker</span>
+              <span class="meta-val">
+                <ion-icon [name]="u.mapConsent ? 'eye-outline' : 'eye-off-outline'"></ion-icon>
+                {{ u.mapConsent ? 'Consent Granted (Visible)' : 'Consent Revoked / Off' }}
+              </span>
+            </div>
+
+            <div class="meta-item">
+              <span class="meta-label">Warning History</span>
+              <span class="meta-val text-warning">
+                {{ u.warningCount || 0 }} Recorded Warning(s)
+              </span>
+            </div>
+
+            <div class="meta-item">
+              <span class="meta-label">Registered On</span>
+              <span class="meta-val">{{ u.createdAt }}</span>
+            </div>
+          </div>
+
+          <!-- Active Suspension Notice -->
+          @if (u.state === 'suspended') {
+            <div class="suspension-banner">
+              <div class="banner-icon">
+                <ion-icon name="ban-outline"></ion-icon>
+              </div>
+              <div class="banner-body">
+                <h4 class="banner-title">Account Currently Suspended</h4>
+                <p class="banner-text">
+                  Type: <b>{{ u.suspensionType | uppercase }}</b>
+                  @if (u.suspensionType === 'temporary') {
+                    (Until: {{ u.suspendedUntil }})
+                  }
+                </p>
+                <p class="banner-reason">Reason: "{{ u.suspensionReason }}"</p>
+                <p class="banner-consequence">Public profile, map marker, and authored posts are hidden from public discovery.</p>
+              </div>
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Administrative Actions Section -->
+      <ion-card class="actions-card">
+        <ion-card-header>
+          <ion-card-title>Administrative Moderation Controls</ion-card-title>
+          <ion-card-subtitle>Written justification is strictly required for all enforcement decisions.</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          @if (activeAction() === null) {
+            <div class="actions-button-grid">
+              <!-- Issue Warning -->
+              <ion-button color="warning" expand="block" (click)="openAction('warning')">
+                <ion-icon name="warning-outline" slot="start"></ion-icon>
+                Issue Account Warning
+              </ion-button>
+
+              @if (u.state !== 'suspended') {
+                <!-- Temporary Suspension -->
+                <ion-button color="danger" fill="outline" expand="block" (click)="openAction('temp_suspend')">
+                  <ion-icon name="time-outline" slot="start"></ion-icon>
+                  Temporarily Suspend Account
+                </ion-button>
+
+                <!-- Indefinite Suspension -->
+                <ion-button color="danger" expand="block" (click)="openAction('indef_suspend')">
+                  <ion-icon name="ban-outline" slot="start"></ion-icon>
+                  Indefinitely Suspend Account
+                </ion-button>
+              } @else {
+                <!-- Lift Suspension -->
+                <ion-button color="success" expand="block" (click)="openAction('lift')">
+                  <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+                  Lift Account Suspension
+                </ion-button>
+              }
+            </div>
+          } @else {
+            <!-- Inline Action Execution Form -->
+            <div class="action-form-panel">
+              @if (activeAction() === 'warning') {
+                <h4 class="form-title text-warning">Issue Account Warning</h4>
+                <p class="form-desc">Dispatches an administrative warning to this user and adds an entry to the audit log.</p>
+              }
+              @if (activeAction() === 'temp_suspend') {
+                <h4 class="form-title text-danger">Temporarily Suspend Account</h4>
+                <div class="field-group">
+                  <label>Suspension Duration</label>
+                  <ion-select
+                    [value]="tempDurationDays"
+                    (ionChange)="tempDurationDays = $event.detail.value"
+                    interface="popover"
+                    class="custom-select"
+                  >
+                    <ion-select-option [value]="7">7 Days</ion-select-option>
+                    <ion-select-option [value]="14">14 Days</ion-select-option>
+                    <ion-select-option [value]="30">30 Days</ion-select-option>
+                  </ion-select>
+                </div>
+              }
+              @if (activeAction() === 'indef_suspend') {
+                <h4 class="form-title text-danger">Indefinitely Suspend Account</h4>
+                <p class="form-desc">Immediately hides public profile, map marker, and all user posts from discovery until an appeal is approved.</p>
+              }
+              @if (activeAction() === 'lift') {
+                <h4 class="form-title text-success">Lift Account Suspension</h4>
+                <p class="form-desc">Reactivates user account and restores eligible authored posts back into public discovery.</p>
+              }
+
+              <div class="field-group">
+                <label>Written Decision Reason (Required)</label>
+                <ion-textarea
+                  [value]="actionReason"
+                  (ionInput)="actionReason = $event.detail.value || ''"
+                  placeholder="State the administrative rationale..."
+                  rows="3"
+                  class="custom-textarea"
+                ></ion-textarea>
+              </div>
+
+              <div class="form-actions-row">
+                <ion-button fill="outline" color="medium" (click)="cancelAction()">
+                  Cancel
+                </ion-button>
+
+                @if (activeAction() === 'warning') {
+                  <ion-button color="warning" [disabled]="!actionReason.trim()" (click)="submitWarning()">
+                    Confirm Warning
+                  </ion-button>
+                }
+                @if (activeAction() === 'temp_suspend') {
+                  <ion-button color="danger" [disabled]="!actionReason.trim()" (click)="submitTempSuspend()">
+                    Confirm Temp Suspension
+                  </ion-button>
+                }
+                @if (activeAction() === 'indef_suspend') {
+                  <ion-button color="danger" [disabled]="!actionReason.trim()" (click)="submitIndefSuspend()">
+                    Confirm Indefinite Suspension
+                  </ion-button>
+                }
+                @if (activeAction() === 'lift') {
+                  <ion-button color="success" [disabled]="!actionReason.trim()" (click)="submitLiftSuspension()">
+                    Confirm Lift Suspension
+                  </ion-button>
+                }
+              </div>
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+
+      <!-- User Post History -->
+      <div class="section-container">
+        <h3 class="section-title">
+          Authored Posts ({{ userPosts().length }})
+        </h3>
+
+        <div class="posts-list">
+          @for (post of userPosts(); track post.id) {
+            <ion-card class="post-item-card" [routerLink]="['/admin/post', post.id]">
+              <ion-card-content>
+                <div class="post-item-top">
+                  <span class="post-type" [class.type-offer]="post.type === 'offer'">
+                    {{ post.type === 'offer' ? 'Service Offer' : 'Service Request' }}
+                  </span>
+                  <div class="post-badges">
+                    <span class="post-status">{{ post.status }}</span>
+                    @if (post.moderated) {
+                      <span class="badge-moderated">HIDDEN / MODERATED</span>
+                    } @else {
+                      <span class="badge-visible">Visible</span>
+                    }
+                  </div>
+                </div>
+                <h4 class="post-title">{{ post.title }}</h4>
+                <p class="post-desc">{{ post.description }}</p>
+                <div class="post-meta">
+                  <span>Category: {{ post.category }}</span>
+                  <span>₱{{ post.amount || 'Negotiable' }}</span>
+                  <span>Created: {{ post.createdAt }}</span>
+                </div>
+              </ion-card-content>
+            </ion-card>
+          } @empty {
+            <div class="empty-posts">This user has not authored any posts yet.</div>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="not-found">
+      <h3>User Not Found</h3>
+      <p>The requested user ID does not exist.</p>
+      <ion-button routerLink="/admin/tabs/users" fill="outline">Return to User List</ion-button>
+    </div>
+  }
+
+  <ion-toast
+    [isOpen]="isToastOpen"
+    [message]="toastMessage"
+    [duration]="2500"
+    (didDismiss)="isToastOpen = false"
+  ></ion-toast>
+</ion-content>

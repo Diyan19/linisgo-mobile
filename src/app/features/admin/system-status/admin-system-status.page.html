@@ -1,0 +1,54 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/more" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>System Status</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1 class="page-title">Integration & Environment Status</h1>
+      <p class="page-subtitle">Honest transparency report of connected, disconnected, and mock architectural subsystems.</p>
+    </div>
+
+    <!-- Notice Banner -->
+    <div class="status-notice">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <div class="notice-text">
+        <b>Academic Scope Compliance:</b> Real Firebase credentials, Cloudinary API keys, and external backend endpoints remain intentionally disconnected in this phase.
+      </div>
+    </div>
+
+    <!-- Service Grid -->
+    <div class="services-list">
+      @for (svc of services; track svc.name) {
+        <ion-card class="service-card">
+          <ion-card-content>
+            <div class="service-header">
+              <div class="service-title-wrap">
+                <span class="service-category">{{ svc.category }}</span>
+                <h3 class="service-name">{{ svc.name }}</h3>
+              </div>
+              <span class="status-badge" [class.state-connected]="svc.stateType === 'connected'"
+                [class.state-disconnected]="svc.stateType === 'disconnected'"
+                [class.state-demo]="svc.stateType === 'demo'">
+                <ion-icon [name]="svc.stateType === 'connected' ? 'checkmark-circle-outline' : (svc.stateType === 'disconnected' ? 'close-circle-outline' : 'alert-circle-outline')"></ion-icon>
+                {{ svc.status }}
+              </span>
+            </div>
+
+            <p class="service-desc">{{ svc.description }}</p>
+
+            <div class="service-note-box">
+              <span class="note-label">Environment Diagnostics:</span>
+              <span class="note-val">{{ svc.note }}</span>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      }
+    </div>
+  </div>
+</ion-content>

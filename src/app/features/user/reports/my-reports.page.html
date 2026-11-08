@@ -1,0 +1,58 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>My Reports</ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="/user/report">
+        <ion-icon name="add-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">Submitted Reports</h1>
+      <p class="page-subtitle">Track the moderation review status of community reports you have filed.</p>
+    </div>
+
+    <ion-button expand="block" color="danger" fill="outline" routerLink="/user/report" class="new-report-btn">
+      <ion-icon name="flag-outline" slot="start"></ion-icon>
+      Submit a New Report
+    </ion-button>
+
+    <div class="reports-list">
+      @for (rep of dataService.myReports(); track rep.id) {
+        <div class="report-card">
+          <div class="card-head">
+            <span class="report-id">Reference: #{{ rep.id }}</span>
+            <ion-badge [color]="getStatusColor(rep.status)" class="status-badge">
+              {{ rep.status }}
+            </ion-badge>
+          </div>
+
+          <div class="target-summary">
+            <span class="target-type-tag">Target: {{ rep.targetType === 'post' ? 'Service Post' : 'User Account' }}</span>
+            <span class="target-ref">({{ rep.targetId }})</span>
+          </div>
+
+          <h2 class="report-reason">{{ rep.reason }}</h2>
+          <p class="report-explanation">{{ rep.explanation }}</p>
+
+          <div class="card-footer">
+            <span class="report-date">Filed on {{ rep.createdAt }}</span>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="flag-outline" class="empty-icon"></ion-icon>
+          <p class="empty-title">No reports filed</p>
+          <p class="empty-desc">You have not submitted any community reports. If you encounter spam or misleading services, you can report them here.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

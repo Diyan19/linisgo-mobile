@@ -1,0 +1,189 @@
+.page-content {
+  --background: #f8fafc;
+}
+
+.content-wrapper {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.page-header {
+  margin-bottom: 16px;
+
+  .page-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+  }
+
+  .page-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+.custom-search {
+  --background: #ffffff;
+  --border-radius: 10px;
+  --box-shadow: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.filter-segment {
+  --background: #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 16px;
+
+  ion-segment-button {
+    --color: #64748b;
+    --color-checked: #0f172a;
+    --indicator-color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+}
+
+.reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-card {
+  margin: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+  }
+
+  ion-card-content {
+    padding: 14px;
+  }
+}
+
+.report-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+
+  .target-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #334155;
+    padding: 2px 8px;
+    border-radius: 4px;
+
+    &.user-target {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+  }
+
+  .status-pill {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+
+    &.status-pending {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    &.status-review {
+      background: #fef3c7;
+      color: #b45309;
+    }
+    &.status-resolved {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    &.status-dismissed {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+  }
+}
+
+.reason-row {
+  margin-bottom: 6px;
+
+  .reason-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-right: 6px;
+  }
+
+  .reason-text {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+}
+
+.explanation-text {
+  font-size: 0.85rem;
+  color: #475569;
+  margin: 0 0 10px 0;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.report-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .meta-date {
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+
+  .investigate-btn {
+    --color: #2563eb;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+
+  ion-icon {
+    font-size: 3rem;
+    margin-bottom: 8px;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #475569;
+    margin: 0 0 4px 0;
+  }
+
+  p {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+}

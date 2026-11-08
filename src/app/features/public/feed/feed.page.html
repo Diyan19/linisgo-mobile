@@ -1,0 +1,152 @@
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="feed-header">
+      <h1 class="page-title">Community Feed</h1>
+      <p class="page-subtitle">Service requests and offers from local cleaning service providers and clients.</p>
+    </div>
+
+    <!-- Filter Control Box -->
+    <div class="filter-box">
+      <!-- Searchbar -->
+      <ion-searchbar
+        [value]="dataService.searchQuery()"
+        placeholder="Search posts, services, locations..."
+        (ionInput)="onSearchChange($event)"
+        class="custom-searchbar"
+        debounce="200"
+      ></ion-searchbar>
+
+      <!-- User Status Tag Chips -->
+      <div class="filter-group">
+        <label class="filter-label">Author profile tag:</label>
+        <div class="chip-row">
+          <button
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'all'"
+            (click)="onTagChange('all')"
+          >
+            Show All
+          </button>
+          <button
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'client'"
+            (click)="onTagChange('client')"
+          >
+            Clients Only
+          </button>
+          <button
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'provider'"
+            (click)="onTagChange('provider')"
+          >
+            Providers Only
+          </button>
+        </div>
+      </div>
+
+      <!-- Post Type Chips -->
+      <div class="filter-group">
+        <label class="filter-label">Post type:</label>
+        <div class="chip-row">
+          <button
+            class="filter-chip"
+            [class.active]="dataService.selectedType() === 'all'"
+            (click)="onTypeChange('all')"
+          >
+            All Posts
+          </button>
+          <button
+            class="filter-chip"
+            [class.active]="dataService.selectedType() === 'request'"
+            (click)="onTypeChange('request')"
+          >
+            Requests Only
+          </button>
+          <button
+            class="filter-chip"
+            [class.active]="dataService.selectedType() === 'offer'"
+            (click)="onTypeChange('offer')"
+          >
+            Offers Only
+          </button>
+        </div>
+      </div>
+
+      <!-- More Filters Toggle -->
+      <div class="filter-actions-row">
+        <button class="toggle-btn" (click)="toggleMoreFilters()">
+          <ion-icon name="funnel-outline"></ion-icon>
+          {{ showMoreFilters ? 'Hide' : 'More' }} filters
+        </button>
+
+        <button class="clear-btn" (click)="clearFilters()">
+          <ion-icon name="refresh-outline"></ion-icon>
+          Clear filters
+        </button>
+      </div>
+
+      @if (showMoreFilters) {
+        <div class="advanced-filters-panel">
+          <div class="panel-field">
+            <label>Cleaning Category</label>
+            <ion-select
+              [value]="dataService.selectedCategory()"
+              interface="popover"
+              (ionChange)="onCategoryChange($event)"
+              class="panel-select"
+            >
+              <ion-select-option value="all">All categories</ion-select-option>
+              <ion-select-option value="General">General cleaning</ion-select-option>
+              <ion-select-option value="Deep">Deep cleaning</ion-select-option>
+              <ion-select-option value="Kitchen">Kitchen cleaning</ion-select-option>
+              <ion-select-option value="Bathroom">Bathroom cleaning</ion-select-option>
+              <ion-select-option value="Laundry">Laundry</ion-select-option>
+              <ion-select-option value="Other">Other</ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="panel-field">
+            <label>Sort By</label>
+            <ion-select
+              [value]="dataService.selectedSort()"
+              interface="popover"
+              (ionChange)="onSortChange($event)"
+              class="panel-select"
+            >
+              <ion-select-option value="newest">Newest first</ion-select-option>
+              <ion-select-option value="price-asc">Price / Budget (low first)</ion-select-option>
+            </ion-select>
+          </div>
+
+          <p class="panel-hint">Note: Status tag and post type are separate filters and can be combined freely.</p>
+        </div>
+      }
+    </div>
+
+    <!-- Results Count & Map View Link -->
+    <div class="results-bar">
+      <span class="count-text">
+        <b>{{ dataService.filteredPosts().length }}</b> matching posts
+      </span>
+      <a [routerLink]="mapLink" class="map-view-link">
+        <ion-icon name="map-outline"></ion-icon>
+        Map view ›
+      </a>
+    </div>
+
+    <!-- Posts Stream -->
+    <div class="posts-stream">
+      @for (post of dataService.filteredPosts(); track post.id) {
+        <app-post-card [post]="post" [showAuthor]="true"></app-post-card>
+      } @empty {
+        <div class="empty-state">
+          <p class="empty-title">No matching posts found</p>
+          <p class="empty-desc">Try clearing filters or searching with different keywords.</p>
+          <ion-button size="small" fill="outline" color="primary" (click)="clearFilters()">
+            Reset All Filters
+          </ion-button>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

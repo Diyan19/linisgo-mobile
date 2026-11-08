@@ -1,0 +1,77 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/home" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Sign In</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="auth-header">
+      <div class="logo-placeholder">[ LinisGo Finder Logo ]</div>
+      <h1 class="auth-title">Sign in to LinisGo Finder</h1>
+      <p class="auth-subtitle">Academic household cleaning service discovery preview.</p>
+    </div>
+
+    <!-- Demo Notice -->
+    <div class="demo-box">
+      <span class="demo-box-title">Demo Account Preview</span>
+      <div class="demo-account-info">
+        <b>DEMO USER:</b> user&#64;linisgo.demo (Password: User123!)<br />
+        <b>DEMO ADMIN:</b> admin&#64;linisgo.demo (Password: Admin123!)
+      </div>
+      <div class="quick-fill-row">
+        <button class="fill-btn" (click)="fillUserDemo()">Fill Demo User</button>
+        <button class="fill-btn" (click)="fillAdminDemo()">Fill Demo Admin</button>
+      </div>
+    </div>
+
+    <!-- Login Form Card -->
+    <ion-card class="form-card">
+      <ion-card-content>
+        <div class="form-field">
+          <label>Email Address</label>
+          <ion-input
+            type="email"
+            [value]="email"
+            placeholder="Enter email"
+            class="custom-input"
+            (ionInput)="email = $event.detail.value || ''"
+          ></ion-input>
+        </div>
+
+        <div class="form-field">
+          <label>Password</label>
+          <ion-input
+            type="password"
+            [value]="password"
+            placeholder="Enter password"
+            class="custom-input"
+            (ionInput)="password = $event.detail.value || ''"
+          ></ion-input>
+        </div>
+
+        @if (feedbackMessage) {
+          <div class="feedback-box">{{ feedbackMessage }}</div>
+        }
+
+        <ion-button expand="block" color="primary" class="submit-btn" (click)="onSignIn()">
+          Sign In
+        </ion-button>
+
+        <div class="auth-links-row">
+          <a routerLink="/register" class="link-item">Create Account ›</a>
+          <a routerLink="/forgot-password" class="link-item">Forgot password?</a>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="guest-action">
+      <ion-button expand="block" fill="clear" color="medium" (click)="continueAsGuest()">
+        Continue browsing as Guest ›
+      </ion-button>
+    </div>
+  </div>
+</ion-content>

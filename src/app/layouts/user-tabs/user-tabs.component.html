@@ -1,0 +1,54 @@
+<ion-header [translucent]="true" class="user-header">
+  <ion-toolbar color="primary">
+    <ion-title>
+      <div class="brand-title">
+        <span class="brand-name">LinisGo Finder</span>
+      </div>
+    </ion-title>
+    <ion-buttons slot="end">
+      <!-- Notifications Bell with unread badge -->
+      <ion-button routerLink="/user/notifications" class="header-icon-btn" aria-label="Notifications">
+        <ion-icon name="notifications-outline"></ion-icon>
+        @if (dataService.unreadNotificationsCount() > 0) {
+          <ion-badge color="danger" class="header-badge">
+            {{ dataService.unreadNotificationsCount() }}
+          </ion-badge>
+        }
+      </ion-button>
+
+      <!-- Logout Button -->
+      <ion-button (click)="onLogout()" class="header-icon-btn" aria-label="Log Out">
+        <ion-icon name="log-out-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-tabs class="user-tabs-container">
+  <ion-tab-bar slot="bottom" class="custom-user-tab-bar">
+    <ion-tab-button tab="home" href="/user/tabs/home">
+      <ion-icon name="home-outline"></ion-icon>
+      <ion-label>Home</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="feed" href="/user/tabs/feed">
+      <ion-icon name="newspaper-outline"></ion-icon>
+      <ion-label>Feed</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="map" href="/user/tabs/map">
+      <ion-icon name="map-outline"></ion-icon>
+      <ion-label>Map</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="create" href="/user/tabs/create">
+      <ion-icon name="add-circle-outline"></ion-icon>
+      <ion-label>Create</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="profile" href="/user/tabs/profile">
+      <ion-icon name="person-outline"></ion-icon>
+      <ion-label>Profile</ion-label>
+    </ion-tab-button>
+  </ion-tab-bar>
+</ion-tabs>

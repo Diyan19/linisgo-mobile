@@ -1,0 +1,78 @@
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1 class="page-title">Community Reports Queue</h1>
+      <p class="page-subtitle">Examine safety complaints, triage violations, and record administrative findings.</p>
+    </div>
+
+    <!-- Searchbar -->
+    <ion-searchbar
+      [value]="searchQuery()"
+      placeholder="Search reports by reason, target, explanation..."
+      (ionInput)="onSearch($event)"
+      class="custom-search"
+    ></ion-searchbar>
+
+    <!-- Report State Filter Segment -->
+    <ion-segment [value]="selectedFilter()" (ionChange)="onFilterChange($event)" class="filter-segment">
+      <ion-segment-button value="all">
+        <ion-label>All ({{ dataService.reportsSignal().length }})</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="Pending">
+        <ion-label>Pending</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="Under Review">
+        <ion-label>In Review</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="Resolved">
+        <ion-label>Resolved</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="Dismissed">
+        <ion-label>Dismissed</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <!-- Reports List -->
+    <div class="reports-list">
+      @for (report of filteredReports(); track report.id) {
+        <ion-card class="report-card" [routerLink]="['/admin/report', report.id]">
+          <ion-card-content>
+            <div class="report-top-row">
+              <span class="target-type" [class.user-target]="report.targetType === 'user'">
+                <ion-icon [name]="report.targetType === 'user' ? 'person-outline' : 'documents-outline'"></ion-icon>
+                {{ report.targetType | uppercase }}: #{{ report.targetId }}
+              </span>
+              <span class="status-pill" [class.status-pending]="report.status === 'Pending'"
+                [class.status-review]="report.status === 'Under Review'"
+                [class.status-resolved]="report.status === 'Resolved'"
+                [class.status-dismissed]="report.status === 'Dismissed'">
+                {{ report.status }}
+              </span>
+            </div>
+
+            <div class="reason-row">
+              <span class="reason-label">Allegation:</span>
+              <span class="reason-text">{{ report.reason }}</span>
+            </div>
+
+            <p class="explanation-text">"{{ report.explanation }}"</p>
+
+            <div class="report-footer-row">
+              <span class="meta-date">Reported: {{ report.createdAt }}</span>
+              <ion-button fill="clear" size="small" class="investigate-btn">
+                Investigate
+                <ion-icon name="chevron-forward-outline" slot="end"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="shield-alert-outline"></ion-icon>
+          <h3>No Reports in this Queue</h3>
+          <p>No user reports match your current filter settings.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

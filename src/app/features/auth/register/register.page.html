@@ -1,0 +1,71 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/login" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Create Account</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="reg-header">
+      <h1 class="page-title">Join LinisGo Finder</h1>
+      <p class="page-subtitle">One account allows you to both request and offer cleaning services in Oriental Mindoro.</p>
+    </div>
+
+    <div class="notice-box">
+      <b>Registration Preview:</b> In this Phase, user registration preview is enabled. Real Firebase Authentication signups will be active in the upcoming Firebase integration phase.
+    </div>
+
+    <ion-card class="form-card">
+      <ion-card-content>
+        <div class="form-field">
+          <label>Display Name</label>
+          <ion-input
+            type="text"
+            [value]="name"
+            placeholder="Your full name"
+            class="custom-input"
+            (ionInput)="name = $event.detail.value || ''"
+          ></ion-input>
+        </div>
+
+        <div class="form-field">
+          <label>Email Address</label>
+          <ion-input
+            type="email"
+            [value]="email"
+            placeholder="name@example.com"
+            class="custom-input"
+            (ionInput)="email = $event.detail.value || ''"
+          ></ion-input>
+        </div>
+
+        <div class="form-field">
+          <label>Password</label>
+          <ion-input
+            type="password"
+            [value]="password"
+            placeholder="Create password"
+            class="custom-input"
+            (ionInput)="password = $event.detail.value || ''"
+          ></ion-input>
+        </div>
+
+        @if (feedback) {
+          <div class="feedback-box">{{ feedback }}</div>
+        }
+
+        <ion-button expand="block" color="primary" class="submit-btn" (click)="onRegister()">
+          Create Demo Account
+        </ion-button>
+
+        <div class="login-redirect">
+          <span>Already have an account?</span>
+          <a routerLink="/login" class="login-link">Sign In ›</a>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

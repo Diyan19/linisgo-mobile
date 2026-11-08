@@ -1,0 +1,52 @@
+.public-header {
+  ion-toolbar {
+    --background: #2b4354;
+    --color: #ffffff;
+    --border-color: #1e313e;
+  }
+
+  .brand-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+  }
+
+  .login-nav-btn {
+    --border-color: rgba(255, 255, 255, 0.4);
+    --color: #ffffff;
+    --border-radius: 8px;
+    font-weight: 700;
+    margin-right: 6px;
+  }
+}
+
+.public-tabs-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.custom-tab-bar {
+  --background: #ffffff;
+  --border: 1px solid #dce2e5;
+  --color-selected: #20333f;
+  --color: #5d6a75;
+  height: 60px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+
+  ion-tab-button {
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    &.tab-selected {
+      font-weight: 800;
+    }
+
+    ion-icon {
+      font-size: 1.35rem;
+      margin-bottom: 2px;
+    }
+  }
+}

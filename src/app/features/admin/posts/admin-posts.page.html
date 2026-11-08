@@ -1,0 +1,84 @@
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1 class="page-title">Service Posts Management</h1>
+      <p class="page-subtitle">Oversee published requests and offers, audit content, and enforce hiding restrictions.</p>
+    </div>
+
+    <!-- Searchbar -->
+    <ion-searchbar
+      [value]="searchQuery()"
+      placeholder="Search posts by title, description, or author..."
+      (ionInput)="onSearch($event)"
+      class="custom-search"
+    ></ion-searchbar>
+
+    <!-- Post Filter Segment -->
+    <ion-segment [value]="selectedFilter()" (ionChange)="onFilterChange($event)" class="filter-segment">
+      <ion-segment-button value="all">
+        <ion-label>All ({{ dataService.postsSignal().length }})</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="requests">
+        <ion-label>Requests</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="offers">
+        <ion-label>Offers</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="hidden">
+        <ion-label>Hidden</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <!-- Posts List -->
+    <div class="posts-list">
+      @for (post of filteredPosts(); track post.id) {
+        <ion-card class="post-card" [routerLink]="['/admin/post', post.id]">
+          <ion-card-content>
+            <div class="post-header-row">
+              <span class="type-pill" [class.offer]="post.type === 'offer'">
+                {{ post.type === 'offer' ? 'Service Offer' : 'Service Request' }}
+              </span>
+              <div class="badges-row">
+                <span class="status-pill">{{ post.status }}</span>
+                @if (post.moderated) {
+                  <span class="mod-pill hidden">HIDDEN / MODERATED</span>
+                } @else {
+                  <span class="mod-pill visible">Active / Public</span>
+                }
+              </div>
+            </div>
+
+            <h3 class="post-title">{{ post.title }}</h3>
+            <p class="post-desc">{{ post.description }}</p>
+
+            <div class="post-footer-row">
+              <div class="meta-items">
+                <span class="meta-author">
+                  <ion-icon name="person-outline"></ion-icon>
+                  {{ post.authorName }}
+                </span>
+                <span class="meta-cat">
+                  <ion-icon name="pricetagOutline"></ion-icon>
+                  {{ post.category }}
+                </span>
+                <span class="meta-amount">
+                  ₱{{ post.amount || 'Negotiable' }}
+                </span>
+              </div>
+              <ion-button fill="clear" size="small" class="review-btn">
+                Review
+                <ion-icon name="chevron-forward-outline" slot="end"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="documents-outline"></ion-icon>
+          <h3>No Posts Found</h3>
+          <p>No service requests or offers match your current filters.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

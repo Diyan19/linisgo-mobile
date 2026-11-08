@@ -1,0 +1,130 @@
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="map-header">
+      <h1 class="page-title">Nearby Users Map</h1>
+      <p class="page-subtitle">Only users who opted into approximate public map visibility are shown.</p>
+    </div>
+
+    <!-- Quick Filters -->
+    <div class="filter-box">
+      <ion-searchbar
+        [value]="dataService.searchQuery()"
+        placeholder="Search names or towns..."
+        (ionInput)="onSearchChange($event)"
+        class="custom-searchbar"
+        debounce="200"
+      ></ion-searchbar>
+
+      <div class="chip-row">
+        <button
+          class="filter-chip"
+          [class.active]="dataService.selectedTag() === 'all'"
+          (click)="onTagChange('all')"
+        >
+          All Users
+        </button>
+        <button
+          class="filter-chip"
+          [class.active]="dataService.selectedTag() === 'client'"
+          (click)="onTagChange('client')"
+        >
+          Clients Only
+        </button>
+        <button
+          class="filter-chip"
+          [class.active]="dataService.selectedTag() === 'provider'"
+          (click)="onTagChange('provider')"
+        >
+          Providers Only
+        </button>
+      </div>
+    </div>
+
+    <!-- Interactive Conceptual Map Canvas -->
+    <div class="map-canvas">
+      <!-- Water/Island Styling -->
+      <div class="island-watermark">Oriental Mindoro</div>
+
+      <!-- Center / You Marker -->
+      <div class="map-pin you-pin" style="top: 50%; left: 50%;">
+        <span class="pin-badge">YOU</span>
+      </div>
+
+      <!-- Pins for Map-Visible Users -->
+      @for (u of dataService.mapVisibleUsers(); track u.id) {
+        @let isSelected = selectedUser()?.id === u.id;
+        @let pinTop = u.id === 'demo' ? 45 : u.id === 'ana' ? 62 : u.id === 'ben' ? 25 : 78;
+        @let pinLeft = u.id === 'demo' ? 48 : u.id === 'ana' ? 68 : u.id === 'ben' ? 32 : 55;
+
+        <button
+          class="map-pin user-pin"
+          [class.selected]="isSelected"
+          [class.provider]="u.tag === 'provider'"
+          [style.top.%]="pinTop"
+          [style.left.%]="pinLeft"
+          (click)="selectPin(u)"
+        >
+          <span class="pin-icon">{{ u.tag === 'client' ? 'C' : 'P' }}</span>
+          <span class="pin-name">{{ u.name.split(' ')[0] }}</span>
+        </button>
+      }
+    </div>
+
+    <!-- Selected Pin Callout (if active) -->
+    @if (selectedUser(); as user) {
+      <div class="pin-callout-card">
+        <div class="callout-top">
+          <div class="callout-avatar">{{ getInitial(user.name) }}</div>
+          <div class="callout-info">
+            <span class="callout-name">{{ user.name }}</span>
+            <span class="callout-meta">{{ getUserTagLabel(user.tag) }} · {{ user.approxLocation?.label }}</span>
+          </div>
+          <button class="close-callout" (click)="selectedUser.set(null)">✕</button>
+        </div>
+        <p class="callout-bio">{{ user.bio }}</p>
+        <ion-button size="small" expand="block" color="primary" [routerLink]="['/user-profile', user.id]">
+          View Full Public Profile ›
+        </ion-button>
+      </div>
+    }
+
+    <!-- Conceptual Notice -->
+    <p class="map-notice">
+      Notice: Conceptual approximate map. No precise residential coordinates, real GPS, or continuous tracking are used.
+    </p>
+
+    <!-- Map-Visible Users List -->
+    <div class="results-header">
+      <h2 class="section-title">Map-Visible Profiles ({{ dataService.mapVisibleUsers().length }})</h2>
+    </div>
+
+    <div class="users-list">
+      @for (user of dataService.mapVisibleUsers(); track user.id) {
+        <div class="user-item-card">
+          <div class="user-avatar-wrap">
+            <div class="user-avatar">{{ getInitial(user.name) }}</div>
+          </div>
+          <div class="user-details">
+            <div class="user-title-row">
+              <span class="user-name">{{ user.name }}</span>
+              <ion-badge [color]="user.available ? 'success' : 'medium'" class="avail-badge">
+                {{ user.available ? 'Available' : 'Unavailable' }}
+              </ion-badge>
+            </div>
+            <span class="user-tag-text">{{ getUserTagLabel(user.tag) }} · {{ user.approxLocation?.label }}</span>
+            <p class="user-short-bio">{{ user.bio }}</p>
+          </div>
+          <div class="user-action">
+            <ion-button size="small" fill="outline" color="primary" [routerLink]="['/user-profile', user.id]">
+              Profile ›
+            </ion-button>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p>No map-visible users match your filters.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

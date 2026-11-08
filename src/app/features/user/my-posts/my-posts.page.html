@@ -1,0 +1,119 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>My Posts</ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="/user/tabs/create">
+        <ion-icon name="add-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">Manage My Posts</h1>
+      <p class="page-subtitle">View, edit, close, or archive your cleaning service requests and offers.</p>
+    </div>
+
+    <!-- Type Tabs -->
+    <div class="type-filter-row">
+      <button
+        class="chip-btn"
+        [class.active]="selectedTab() === 'all'"
+        (click)="setTab('all')"
+      >
+        All ({{ dataService.myPosts().length }})
+      </button>
+      <button
+        class="chip-btn"
+        [class.active]="selectedTab() === 'request'"
+        (click)="setTab('request')"
+      >
+        Requests Only
+      </button>
+      <button
+        class="chip-btn"
+        [class.active]="selectedTab() === 'offer'"
+        (click)="setTab('offer')"
+      >
+        Offers Only
+      </button>
+    </div>
+
+    @if (feedbackMessage) {
+      <div class="toast-alert">{{ feedbackMessage }}</div>
+    }
+
+    <!-- Create Post CTA -->
+    <ion-button expand="block" color="primary" routerLink="/user/tabs/create" class="create-new-btn">
+      <ion-icon name="add-outline" slot="start"></ion-icon>
+      ＋ Create New Post
+    </ion-button>
+
+    <!-- My Posts List -->
+    <div class="posts-list">
+      @for (post of displayedPosts(); track post.id) {
+        <div class="my-post-card">
+          <div class="card-head">
+            <div class="badges-row">
+              <ion-badge [color]="post.type === 'offer' ? 'primary' : 'tertiary'" class="badge-item">
+                {{ post.type === 'offer' ? 'Offer' : 'Request' }}
+              </ion-badge>
+              <ion-badge
+                [color]="post.status === 'open' || post.status === 'active' ? 'success' : post.status === 'draft' ? 'warning' : 'medium'"
+                class="badge-item"
+              >
+                {{ post.status }}
+              </ion-badge>
+              @if (post.moderated) {
+                <ion-badge color="danger" class="badge-item">Admin Hidden</ion-badge>
+              }
+            </div>
+            <span class="post-date">{{ post.createdAt }}</span>
+          </div>
+
+          <h2 class="post-title">{{ post.title }}</h2>
+          <p class="post-meta">{{ post.category }} cleaning · {{ getAmountText(post) }}</p>
+
+          <p class="post-desc-snippet">{{ post.description }}</p>
+
+          <div class="card-actions">
+            <button class="action-btn" (click)="editPost(post)">
+              <ion-icon name="create-outline"></ion-icon>
+              Edit
+            </button>
+
+            @if (post.status !== 'archived') {
+              <button class="action-btn" (click)="togglePostStatus(post)">
+                <ion-icon name="checkmark-circle-outline"></ion-icon>
+                {{ post.status === 'open' || post.status === 'active' ? 'Close' : 'Reopen' }}
+              </button>
+
+              <button class="action-btn warn-btn" (click)="archivePost(post)">
+                <ion-icon name="archive-outline"></ion-icon>
+                Archive
+              </button>
+            } @else {
+              <button class="action-btn restore-btn" (click)="restorePost(post)">
+                <ion-icon name="refresh-outline"></ion-icon>
+                Restore
+              </button>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p class="empty-title">You have not created any posts in this category yet.</p>
+          <p class="empty-desc">Create your first household cleaning service request or offer now.</p>
+          <ion-button size="small" color="primary" routerLink="/user/tabs/create">
+            Create a Post
+          </ion-button>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

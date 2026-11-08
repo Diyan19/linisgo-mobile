@@ -1,0 +1,124 @@
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="form-header">
+      <h1 class="page-title">{{ editId ? 'Edit Post' : 'Create Post' }}</h1>
+      <p class="page-subtitle">
+        Anyone signed in as a regular user can request or offer cleaning services across Oriental Mindoro.
+      </p>
+    </div>
+
+    @if (isSuspended()) {
+      <div class="suspension-warning-box">
+        <ion-icon name="closeOutline"></ion-icon>
+        <div>
+          <b>Account Suspended:</b> Creating new posts is restricted. You may submit a formal appeal from your profile.
+        </div>
+      </div>
+    }
+
+    <!-- Post Type Selector Chips -->
+    <div class="field-card">
+      <label class="field-label">Post Type *</label>
+      <div class="type-chips-row">
+        <button
+          class="type-chip"
+          [class.active]="postType === 'request'"
+          (click)="setType('request')"
+        >
+          Looking for Services (Request)
+        </button>
+        <button
+          class="type-chip"
+          [class.active]="postType === 'offer'"
+          (click)="setType('offer')"
+        >
+          Offering Services (Offer)
+        </button>
+      </div>
+      <span class="field-note">
+        {{ postType === 'request' ? 'Publish a service request stating what needs cleaning and your budget.' : 'Publish a service offer stating what services you provide and your rate.' }}
+      </span>
+    </div>
+
+    <!-- Form Inputs -->
+    <div class="field-card">
+      <div class="form-group">
+        <label class="field-label">Post Title *</label>
+        <ion-input
+          [value]="title"
+          placeholder="e.g., Need 3-Bedroom Floor Scrubbing"
+          class="custom-input"
+          (ionInput)="title = $event.detail.value || ''"
+        ></ion-input>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Cleaning Category *</label>
+        <ion-select
+          [value]="category"
+          interface="popover"
+          (ionChange)="category = $event.detail.value"
+          class="custom-select"
+        >
+          <ion-select-option value="General">General cleaning</ion-select-option>
+          <ion-select-option value="Deep">Deep cleaning</ion-select-option>
+          <ion-select-option value="Kitchen">Kitchen cleaning</ion-select-option>
+          <ion-select-option value="Bathroom">Bathroom cleaning</ion-select-option>
+          <ion-select-option value="Laundry">Laundry</ion-select-option>
+          <ion-select-option value="Other">Other cleaning</ion-select-option>
+        </ion-select>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Description *</label>
+        <ion-textarea
+          [value]="description"
+          placeholder="Describe the cleaning service details, materials required, or specific tasks..."
+          rows="4"
+          class="custom-textarea"
+          (ionInput)="description = $event.detail.value || ''"
+        ></ion-textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">{{ postType === 'request' ? 'Budget' : 'Price / Rate' }} (PHP, optional)</label>
+        <ion-input
+          type="number"
+          [value]="amount"
+          placeholder="e.g., 750"
+          class="custom-input"
+          (ionInput)="amount = $event.detail.value ? +$event.detail.value : null"
+        ></ion-input>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Photos (Optional photo attachment)</label>
+        <div class="photo-input-box">
+          <input type="file" accept="image/*" (change)="onPhotoSelected($event)" id="photo-upload" class="file-input" />
+          <label for="photo-upload" class="photo-btn">Choose Image</label>
+          <span class="file-status">{{ photoFileName || 'No photo selected (simulation)' }}</span>
+        </div>
+      </div>
+
+      @if (errorMessage) {
+        <div class="error-box">{{ errorMessage }}</div>
+      }
+
+      <div class="actions-row">
+        <ion-button expand="block" color="primary" class="main-action-btn" (click)="onPublish()">
+          {{ editId ? 'Save Changes' : 'Publish Instantly' }}
+        </ion-button>
+
+        @if (!editId) {
+          <ion-button expand="block" fill="outline" color="secondary" (click)="onSaveDraft()">
+            Save Draft
+          </ion-button>
+        }
+
+        <ion-button expand="block" fill="clear" color="medium" (click)="onCancel()">
+          Cancel
+        </ion-button>
+      </div>
+    </div>
+  </div>
+</ion-content>

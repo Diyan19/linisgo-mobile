@@ -1,0 +1,88 @@
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <!-- Profile Card Header -->
+    <div class="profile-summary-card">
+      <div class="top-row">
+        <div class="user-avatar">{{ userInitial }}</div>
+        <div class="user-info">
+          <h1 class="user-name">{{ user?.name || 'User' }}</h1>
+          <div class="badge-row">
+            <ion-badge color="secondary" class="tag-badge">{{ tagLabel }} tag</ion-badge>
+            <ion-badge [color]="user?.available ? 'success' : 'medium'" class="avail-badge">
+              {{ user?.available ? 'Available' : 'Unavailable' }}
+            </ion-badge>
+          </div>
+        </div>
+      </div>
+
+      <div class="about-box">
+        <h2 class="box-title">About Me</h2>
+        <p class="user-bio">{{ user?.bio }}</p>
+
+        <div class="tag-control-bar">
+          <div class="tag-status-text">
+            <span class="label">Current tag:</span>
+            <span class="val">{{ tagLabel }}</span>
+          </div>
+          <button class="switch-tag-btn" (click)="onToggleTag()">
+            <ion-icon name="swap-horizontal-outline"></ion-icon>
+            Switch to {{ oppositeTagLabel }}
+          </button>
+        </div>
+        <p class="tag-disclaimer">
+          Note: The profile tag is descriptive only. It does not affect permissions or feature access.
+        </p>
+
+        @if (tagChangeToast) {
+          <div class="toast-notice">{{ tagChangeToast }}</div>
+        }
+      </div>
+    </div>
+
+    <!-- Navigation Hub Grid -->
+    <section class="section">
+      <h2 class="section-title">Account Management</h2>
+      <div class="nav-grid">
+        <button class="nav-btn" routerLink="/user/edit-profile">
+          <ion-icon name="create-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">✎ Edit Profile</span>
+        </button>
+
+        <button class="nav-btn" routerLink="/user/my-posts">
+          <ion-icon name="document-text-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">☷ My Posts ({{ dataService.myPosts().length }})</span>
+        </button>
+
+        <button class="nav-btn" routerLink="/user/saved">
+          <ion-icon name="bookmark-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">☆ Saved ({{ dataService.savedPostsSignal().length + dataService.savedUsersSignal().length }})</span>
+        </button>
+
+        <button class="nav-btn" routerLink="/user/notifications">
+          <ion-icon name="notifications-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">♧ Notifications ({{ dataService.unreadNotificationsCount() }})</span>
+        </button>
+
+        <button class="nav-btn" routerLink="/user/my-reports">
+          <ion-icon name="flag-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">⚑ My Reports ({{ dataService.myReports().length }})</span>
+        </button>
+
+        <button class="nav-btn" routerLink="/user/my-appeals">
+          <ion-icon name="scale-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">⚖ My Appeals ({{ dataService.myAppeals().length }})</span>
+        </button>
+
+        <button class="nav-btn" routerLink="/user/settings">
+          <ion-icon name="settings-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">⚙ Settings</span>
+        </button>
+
+        <button class="nav-btn logout-btn" (click)="onLogout()">
+          <ion-icon name="log-out-outline" class="nav-btn-icon"></ion-icon>
+          <span class="nav-btn-label">⇥ Log Out</span>
+        </button>
+      </div>
+    </section>
+  </div>
+</ion-content>

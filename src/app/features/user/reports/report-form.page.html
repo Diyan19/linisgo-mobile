@@ -1,0 +1,93 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/feed" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Submit Community Report</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">Report Content or User</h1>
+      <p class="page-subtitle">Submit concerns regarding inappropriate cleaning posts, suspicious offers, or fraudulent profiles.</p>
+    </div>
+
+    @if (feedbackMessage) {
+      <div class="toast-success">{{ feedbackMessage }}</div>
+    }
+
+    @if (targetName) {
+      <div class="target-card">
+        <span class="target-label">Target under review:</span>
+        <span class="target-value">{{ targetName }}</span>
+      </div>
+    }
+
+    <form [formGroup]="reportForm" (ngSubmit)="onSubmit()" class="report-form">
+      <!-- Target Type -->
+      <div class="form-card">
+        <label for="target-type" class="field-label">Report Target</label>
+        <select id="target-type" formControlName="targetType" class="custom-select">
+          <option value="post">Cleaning Service Post</option>
+          <option value="user">User Account Profile</option>
+        </select>
+      </div>
+
+      <!-- Target ID -->
+      <div class="form-card">
+        <label for="target-id" class="field-label">Target Identifier / Reference *</label>
+        <input
+          id="target-id"
+          type="text"
+          formControlName="targetId"
+          placeholder="e.g. p1, ana, etc."
+          class="custom-input"
+        />
+        @if (reportForm.get('targetId')?.invalid && reportForm.get('targetId')?.touched) {
+          <span class="field-error">Target identifier is required.</span>
+        }
+      </div>
+
+      <!-- Reason Category -->
+      <div class="form-card">
+        <label for="report-reason" class="field-label">Reason for Report *</label>
+        <select id="report-reason" formControlName="reason" class="custom-select">
+          @for (r of reasonOptions; track r) {
+            <option [value]="r">{{ r }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Explanation -->
+      <div class="form-card">
+        <label for="report-explanation" class="field-label">Detailed Explanation *</label>
+        <textarea
+          id="report-explanation"
+          formControlName="explanation"
+          placeholder="Describe what occurred, why this content violates community standards, or why you suspect fraudulent behavior..."
+          rows="5"
+          class="custom-textarea"
+        ></textarea>
+        @if (reportForm.get('explanation')?.invalid && reportForm.get('explanation')?.touched) {
+          <span class="field-error">Please provide at least 10 characters explaining your concern.</span>
+        }
+        <span class="field-hint">Your report will be reviewed by application moderators according to Oriental Mindoro community guidelines.</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="action-buttons">
+        <ion-button expand="block" type="submit" color="danger" [disabled]="isSubmitting" class="submit-btn">
+          <ion-icon name="flag-outline" slot="start"></ion-icon>
+          {{ isSubmitting ? 'Submitting...' : 'Submit Report' }}
+        </ion-button>
+
+        <ion-button expand="block" type="button" fill="outline" color="medium" (click)="onCancel()" class="cancel-btn">
+          <ion-icon name="close-outline" slot="start"></ion-icon>
+          Cancel
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>

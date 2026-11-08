@@ -1,0 +1,155 @@
+.content-wrapper {
+  max-width: 540px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.search-header {
+  margin-bottom: 12px;
+
+  .page-title {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #24313b;
+    margin: 0 0 4px 0;
+  }
+
+  .page-subtitle {
+    font-size: 0.88rem;
+    color: #657580;
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+.search-box {
+  background: #ffffff;
+  border: 1px solid #dce2e5;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 18px;
+}
+
+.custom-searchbar {
+  --background: #f4f6f7;
+  --border-radius: 8px;
+  --box-shadow: none;
+  padding: 0 0 8px 0;
+}
+
+.chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  background: #ffffff;
+  border: 1px solid #cbd5da;
+  border-radius: 20px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3f4e58;
+  cursor: pointer;
+
+  &.active {
+    background: #dfe9ed;
+    border-color: #526f83;
+    color: #20333f;
+    font-weight: 800;
+  }
+}
+
+.section {
+  margin-bottom: 22px;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #24313b;
+  margin: 0 0 10px 0;
+}
+
+.empty-box {
+  text-align: center;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px dashed #cbd5da;
+  border-radius: 10px;
+  color: #7b8891;
+  font-size: 0.85rem;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-card {
+  background: #ffffff;
+  border: 1px solid #dce2e5;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+
+  .avatar-wrap {
+    .avatar-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #eef2f4;
+      border: 1px solid #cbd5da;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1rem;
+      color: #2b4354;
+    }
+  }
+
+  .user-body {
+    flex: 1;
+    min-width: 0;
+
+    .name-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .user-name {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: #24313b;
+      }
+
+      ion-badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+      }
+    }
+
+    .user-sub {
+      font-size: 0.75rem;
+      color: #657580;
+    }
+
+    .user-bio {
+      font-size: 0.8rem;
+      color: #4a5964;
+      margin: 4px 0 0 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .user-action {
+    flex-shrink: 0;
+  }
+}

@@ -1,0 +1,93 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/feed" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Public Profile</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    @if (user) {
+      <!-- Profile Header Card -->
+      <div class="profile-card">
+        <div class="profile-top-row">
+          <div class="profile-avatar">{{ userInitial }}</div>
+          <div class="profile-main-meta">
+            <h1 class="user-fullname">{{ user.name }}</h1>
+            <div class="badge-row">
+              <ion-badge color="secondary" class="tag-badge">{{ tagLabel }} tag</ion-badge>
+              <ion-badge [color]="user.available ? 'success' : 'medium'" class="avail-badge">
+                {{ user.available ? 'Available' : 'Unavailable' }}
+              </ion-badge>
+            </div>
+            @if (user.approxLocation?.label) {
+              <div class="loc-text">
+                <ion-icon name="location-outline"></ion-icon>
+                <span>{{ user.approxLocation?.label }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <p class="user-bio-full">{{ user.bio }}</p>
+
+        <div class="divider"></div>
+
+        <!-- Public Contact Details -->
+        <h2 class="sub-title">Public Contact Information</h2>
+        <div class="contact-box">
+          @if (user.showPhone && user.contactPhone) {
+            <div class="contact-item">
+              <ion-icon name="call-outline"></ion-icon>
+              <span>{{ user.contactPhone }}</span>
+            </div>
+          }
+          @if (user.showFacebook && user.contactFacebook) {
+            <div class="contact-item">
+              <ion-icon name="logo-facebook"></ion-icon>
+              <span>{{ user.contactFacebook }}</span>
+            </div>
+          }
+          @if (!((user.showPhone && user.contactPhone) || (user.showFacebook && user.contactFacebook))) {
+            <p class="no-contact-msg">This user has not made phone or social links publicly visible.</p>
+          }
+        </div>
+
+        @if (!isOwnProfile) {
+          <div class="user-profile-actions">
+            <button class="profile-action-btn" (click)="toggleSaveUser()">
+              <ion-icon [name]="isSavedUser ? 'bookmark' : 'bookmark-outline'" [class.saved]="isSavedUser"></ion-icon>
+              <span>{{ isSavedUser ? 'Saved Profile' : 'Save Profile' }}</span>
+            </button>
+
+            <button class="profile-action-btn report-btn" (click)="reportUser()">
+              <ion-icon name="flag-outline"></ion-icon>
+              <span>Report User</span>
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Published Services & Needs -->
+      <section class="section">
+        <h2 class="section-title">Published Services & Needs ({{ userPosts.length }})</h2>
+
+        @for (post of userPosts; track post.id) {
+          <app-post-card [post]="post" [showAuthor]="false"></app-post-card>
+        } @empty {
+          <div class="empty-state">
+            <p>No active public posts published by this user.</p>
+          </div>
+        }
+      </section>
+    } @else {
+      <div class="not-found-card">
+        <h2>User Profile Not Found</h2>
+        <p>The profile you requested does not exist or has been removed.</p>
+        <ion-button routerLink="/tabs/feed" color="primary">Return to Community Feed</ion-button>
+      </div>
+    }
+  </div>
+</ion-content>

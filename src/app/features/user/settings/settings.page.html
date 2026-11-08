@@ -1,0 +1,152 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Account Settings</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">Privacy & Preferences</h1>
+      <p class="page-subtitle">Control how your contact avenues and geographic markers are shared.</p>
+    </div>
+
+    @if (feedbackMessage) {
+      <div class="toast-alert">{{ feedbackMessage }}</div>
+    }
+
+    <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()">
+      <!-- Section 1: Contact Visibility -->
+      <div class="settings-card">
+        <div class="card-title-row">
+          <ion-icon name="lock-closed-outline" class="sec-icon"></ion-icon>
+          <h2 class="card-title">Contact Visibility</h2>
+        </div>
+        <p class="card-desc">Decide which communication methods appear on your public profile and post cards.</p>
+
+        <div class="checkbox-row">
+          <ion-checkbox formControlName="showPhone" justify="start">
+            <span class="chk-label">Show Mobile Phone Number</span>
+          </ion-checkbox>
+        </div>
+
+        <div class="checkbox-row">
+          <ion-checkbox formControlName="showFacebook" justify="start">
+            <span class="chk-label">Show Facebook Profile / Messenger Link</span>
+          </ion-checkbox>
+        </div>
+      </div>
+
+      <!-- Section 2: Map Location Consent (Default OFF) -->
+      <div class="settings-card">
+        <div class="card-title-row">
+          <ion-icon name="map-outline" class="sec-icon"></ion-icon>
+          <h2 class="card-title">Map Location Discovery</h2>
+        </div>
+        <p class="card-desc">
+          Privacy Policy Rule: <strong>Map visibility defaults to OFF</strong> and requires explicit consent. Your exact home coordinates are never revealed; only the general municipality center is pinned.
+        </p>
+
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <span class="toggle-label">Enable Public Map Marker</span>
+            <span class="toggle-sub">Allow nearby clients or cleaning helpers to discover you on the Oriental Mindoro map.</span>
+          </div>
+          <ion-toggle formControlName="mapConsent" color="success"></ion-toggle>
+        </div>
+
+        @if (settingsForm.get('mapConsent')?.value) {
+          <div class="municipality-picker-box">
+            <label for="mun-select" class="picker-label">Approximate Municipal Area:</label>
+            <select id="mun-select" formControlName="selectedMunicipality" class="custom-select">
+              @for (mun of municipalities; track mun.label) {
+                <option [value]="mun.label">{{ mun.label }}</option>
+              }
+            </select>
+            <span class="picker-note">
+              Pin will be placed around {{ settingsForm.get('selectedMunicipality')?.value }} on the interactive discovery map.
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- Save Button -->
+      <ion-button expand="block" type="submit" color="primary" class="save-settings-btn">
+        <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+        Save Privacy & Map Settings
+      </ion-button>
+    </form>
+
+    <!-- Section 3: Account State (Active / Deactivated) -->
+    <div class="settings-card manage-card">
+      <div class="card-title-row">
+        <ion-icon name="settings-outline" class="sec-icon"></ion-icon>
+        <h2 class="card-title">Account Status</h2>
+      </div>
+
+      <div class="status-summary">
+        <span class="status-label">Current State:</span>
+        <ion-badge [color]="dataService.currentUser()?.state === 'active' ? 'success' : 'warning'" class="state-badge">
+          {{ dataService.currentUser()?.state }}
+        </ion-badge>
+      </div>
+
+      <p class="card-desc">
+        @if (dataService.currentUser()?.state === 'active') {
+          Temporarily pause your activity. Deactivating your account hides all your posts and removes you from the map.
+        } @else {
+          Your account is currently paused. Click below to reactivate and restore your profile and posts.
+        }
+      </p>
+
+      <ion-button
+        expand="block"
+        fill="outline"
+        [color]="dataService.currentUser()?.state === 'active' ? 'warning' : 'success'"
+        (click)="onToggleDeactivation()"
+        class="deactivate-btn"
+      >
+        @if (dataService.currentUser()?.state === 'active') {
+          <ion-icon name="pause-outline" slot="start"></ion-icon>
+          Deactivate Account
+        } @else {
+          <ion-icon name="play-outline" slot="start"></ion-icon>
+          Reactivate Account
+        }
+      </ion-button>
+    </div>
+
+    <!-- Section 4: Danger Zone -->
+    <div class="settings-card danger-card">
+      <div class="card-title-row">
+        <ion-icon name="warning-outline" class="sec-icon danger-icon"></ion-icon>
+        <h2 class="card-title danger-title">Danger Zone</h2>
+      </div>
+      <p class="card-desc">
+        Reset or erase all local demo account data, author posts, saved items, and notifications.
+      </p>
+
+      @if (!showDeleteConfirm) {
+        <ion-button expand="block" color="danger" fill="outline" (click)="confirmDelete()" class="delete-trigger-btn">
+          <ion-icon name="trash-outline" slot="start"></ion-icon>
+          Reset / Delete Demo Account
+        </ion-button>
+      } @else {
+        <div class="delete-confirm-box">
+          <p class="confirm-msg">Are you sure? This will clear all posts and activity created by this demo account.</p>
+          <div class="confirm-btn-row">
+            <ion-button color="danger" (click)="executeDelete()">
+              Yes, Delete
+            </ion-button>
+            <ion-button color="medium" fill="outline" (click)="cancelDelete()">
+              Cancel
+            </ion-button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

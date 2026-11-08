@@ -1,0 +1,57 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>My Appeals</ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="/user/appeal">
+        <ion-icon name="add-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">Moderation Appeals</h1>
+      <p class="page-subtitle">Track the status of appeals submitted for restricted posts or account status reviews.</p>
+    </div>
+
+    <ion-button expand="block" color="primary" fill="outline" routerLink="/user/appeal" class="new-appeal-btn">
+      <ion-icon name="scale-outline" slot="start"></ion-icon>
+      Submit a New Appeal
+    </ion-button>
+
+    <div class="appeals-list">
+      @for (app of dataService.myAppeals(); track app.id) {
+        <div class="appeal-card">
+          <div class="card-head">
+            <span class="appeal-id">Appeal Ref: #{{ app.id }}</span>
+            <ion-badge [color]="getStatusColor(app.status)" class="status-badge">
+              {{ app.status }}
+            </ion-badge>
+          </div>
+
+          <div class="target-summary">
+            <span class="target-tag">Target: {{ app.targetType === 'post' ? 'Post Restriction' : 'Account Status' }}</span>
+            <span class="target-ref">({{ app.targetId }})</span>
+          </div>
+
+          <p class="appeal-explanation">{{ app.explanation }}</p>
+
+          <div class="card-footer">
+            <span class="appeal-date">Submitted on {{ app.createdAt }}</span>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="scale-outline" class="empty-icon"></ion-icon>
+          <p class="empty-title">No appeals filed</p>
+          <p class="empty-desc">You do not have any open appeals. If a post is moderated or restricted by an administrator, you may submit an appeal here.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

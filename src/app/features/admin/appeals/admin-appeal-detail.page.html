@@ -1,0 +1,173 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/appeals" text="Appeals"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Appeal Adjudication</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  @if (appeal(); as a) {
+    <div class="content-wrapper">
+      <!-- Appeal Overview Card -->
+      <ion-card class="status-card">
+        <ion-card-content>
+          <div class="status-top-row">
+            <span class="appeal-id">Appeal #{{ a.id }}</span>
+            <span class="status-badge" [class.status-pending]="a.status === 'Pending'"
+              [class.status-approved]="a.status === 'Approved'"
+              [class.status-rejected]="a.status === 'Rejected'">
+              {{ a.status }}
+            </span>
+          </div>
+
+          <div class="explanation-box">
+            <span class="box-label">Appellant Explanation</span>
+            <p class="explanation-text">"{{ a.explanation }}"</p>
+          </div>
+
+          <div class="meta-row">
+            <span>Appellant ID: <b>{{ a.appellantId }}</b></span>
+            <span>Target: <b>{{ a.targetType | uppercase }} #{{ a.targetId }}</b></span>
+            <span>Date: <b>{{ a.createdAt }}</b></span>
+          </div>
+
+          @if (a.decisionNotes) {
+            <div class="decision-box">
+              <span class="decision-label">Administrative Decision Rationale</span>
+              <p class="decision-text">"{{ a.decisionNotes }}"</p>
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Target Context Card -->
+      <div class="target-section">
+        <h3 class="section-title">Underlying Moderation Context</h3>
+
+        @if (a.targetType === 'post') {
+          @if (targetPost(); as p) {
+            <ion-card class="context-card" [routerLink]="['/admin/post', p.id]">
+              <ion-card-content>
+                <div class="context-header">
+                  <span class="type-pill">{{ p.type === 'offer' ? 'Service Offer' : 'Service Request' }}</span>
+                  <span class="mod-pill" [class.hidden]="p.moderated" [class.visible]="!p.moderated">
+                    {{ p.moderated ? 'Currently Moderated / Hidden' : 'Active / Unmoderated' }}
+                  </span>
+                </div>
+                <h4 class="post-title">{{ p.title }}</h4>
+                <p class="post-desc">{{ p.description }}</p>
+                @if (p.moderationReason) {
+                  <div class="reason-quote">Original Restriction Reason: "{{ p.moderationReason }}"</div>
+                }
+              </ion-card-content>
+            </ion-card>
+          } @else {
+            <div class="empty-context">Target post #{{ a.targetId }} was not found.</div>
+          }
+        }
+
+        @if (a.targetType === 'account') {
+          @if (targetUser(); as u) {
+            <ion-card class="context-card" [routerLink]="['/admin/user', u.id]">
+              <ion-card-content>
+                <div class="context-header">
+                  <span class="type-pill">{{ u.tag === 'provider' ? 'Service Provider' : 'Client' }}</span>
+                  <span class="state-pill" [class.suspended]="u.state === 'suspended'">{{ u.state }}</span>
+                </div>
+                <h4 class="post-title">{{ u.name }} (#{{ u.id }})</h4>
+                <p class="post-desc">{{ u.bio }}</p>
+                @if (u.suspensionReason) {
+                  <div class="reason-quote">Original Suspension Reason: "{{ u.suspensionReason }}"</div>
+                }
+              </ion-card-content>
+            </ion-card>
+          } @else {
+            <div class="empty-context">Target account #{{ a.targetId }} was not found.</div>
+          }
+        }
+      </div>
+
+      <!-- Action Panel -->
+      <ion-card class="decision-card">
+        <ion-card-header>
+          <ion-card-title>Administrative Appeal Decision</ion-card-title>
+          <ion-card-subtitle>
+            Approving the appeal will automatically lift the targeted moderation restriction if still eligible.
+          </ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          @if (activeAction() === null) {
+            <div class="actions-row">
+              @if (a.status === 'Pending') {
+                <ion-button color="success" expand="block" (click)="openDecision('approve')">
+                  <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+                  Approve Appeal & Lift Restriction
+                </ion-button>
+
+                <ion-button color="danger" fill="outline" expand="block" (click)="openDecision('reject')">
+                  <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+                  Reject Appeal & Maintain Restrictions
+                </ion-button>
+              } @else {
+                <div class="resolved-notice">
+                  This appeal has already been adjudicated as <b>{{ a.status | uppercase }}</b>.
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="action-form">
+              <h4 class="form-title" [class.text-success]="activeAction() === 'approve'" [class.text-danger]="activeAction() === 'reject'">
+                {{ activeAction() === 'approve' ? 'Approve Appeal' : 'Reject Appeal' }}
+              </h4>
+              <p class="form-desc">
+                {{ activeAction() === 'approve' ? 'State the administrative grounds for approving this appeal and reversing the moderation restriction.' : 'State the formal grounds for upholding the restriction and denying this appeal.' }}
+              </p>
+
+              <div class="form-group">
+                <label>Written Decision Rationale (Required)</label>
+                <ion-textarea
+                  [value]="decisionNotes"
+                  (ionInput)="decisionNotes = $event.detail.value || ''"
+                  placeholder="Record formal adjudication rationale..."
+                  rows="3"
+                  class="custom-textarea"
+                ></ion-textarea>
+              </div>
+
+              <div class="form-buttons">
+                <ion-button fill="outline" color="medium" (click)="cancelDecision()">
+                  Cancel
+                </ion-button>
+
+                @if (activeAction() === 'approve') {
+                  <ion-button color="success" [disabled]="!decisionNotes.trim()" (click)="submitApprove()">
+                    Confirm Approval
+                  </ion-button>
+                } @else {
+                  <ion-button color="danger" [disabled]="!decisionNotes.trim()" (click)="submitReject()">
+                    Confirm Rejection
+                  </ion-button>
+                }
+              </div>
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+    </div>
+  } @else {
+    <div class="not-found">
+      <h3>Appeal Not Found</h3>
+      <p>The specified appeal record could not be found.</p>
+      <ion-button routerLink="/admin/appeals" fill="outline">Return to Appeals</ion-button>
+    </div>
+  }
+
+  <ion-toast
+    [isOpen]="isToastOpen"
+    [message]="toastMessage"
+    [duration]="2500"
+    (didDismiss)="isToastOpen = false"
+  ></ion-toast>
+</ion-content>

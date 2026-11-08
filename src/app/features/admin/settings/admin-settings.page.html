@@ -1,0 +1,104 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/more" text="More"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Admin Settings</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1 class="page-title">Administrator Environment</h1>
+      <p class="page-subtitle">Security parameters, role boundaries, and sample data controls.</p>
+    </div>
+
+    <!-- Admin Profile Card -->
+    <ion-card class="settings-card">
+      <ion-card-header>
+        <div class="card-icon-title">
+          <ion-icon name="shield-checkmark-outline"></ion-icon>
+          <ion-card-title>Active Administrator Identity</ion-card-title>
+        </div>
+        <ion-card-subtitle>Authenticated demonstration credentials</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="info-row">
+          <span class="label">Session Email:</span>
+          <span class="val">admin&#64;linisgo.demo</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Role Assignment:</span>
+          <span class="val text-danger"><b>System Administrator (Tier 1)</b></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Authorization Basis:</span>
+          <span class="val">Fictional academic test harness credentials</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Jurisdiction:</span>
+          <span class="val">Oriental Mindoro, Philippines</span>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Role Governance Note Card -->
+    <ion-card class="security-card">
+      <ion-card-content>
+        <div class="security-header">
+          <ion-icon name="lock-closed-outline"></ion-icon>
+          <h4>Security Architecture Note</h4>
+        </div>
+        <p class="security-text">
+          <b>Strict Privilege Isolation:</b> In accordance with project security requirements, administrator privileges cannot be granted or revoked through user interface controls.
+          Neither "Add Admin" nor "Promote User" capabilities exist on client devices. Administrator claims must strictly be provisioned via trusted developer-controlled backend tooling through the Firebase Admin SDK.
+        </p>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Demo Data Reset Card -->
+    <ion-card class="reset-card">
+      <ion-card-header>
+        <div class="card-icon-title">
+          <ion-icon name="refresh-outline"></ion-icon>
+          <ion-card-title>Reset Sample Demo Data</ion-card-title>
+        </div>
+        <ion-card-subtitle>Restore baseline sample users, posts, reports, appeals, and audit logs.</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="reset-desc">
+          Resets all local in-memory and browser localStorage data to the initial pristine state. Use this to re-run test workflows.
+        </p>
+        <ion-button color="warning" expand="block" (click)="confirmReset()">
+          <ion-icon name="refresh-outline" slot="start"></ion-icon>
+          Reset Demo Data to Defaults
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Logout Action -->
+    <div class="logout-box">
+      <ion-button color="danger" fill="outline" expand="block" (click)="onLogout()">
+        <ion-icon name="log-out-outline" slot="start"></ion-icon>
+        Log Out of Administrator Console
+      </ion-button>
+    </div>
+  </div>
+
+  <ion-alert
+    [isOpen]="isResetAlertOpen()"
+    header="Confirm Data Reset"
+    subHeader="This will erase all newly created posts, moderation decisions, and user reports."
+    message="Are you sure you want to restore baseline demo data?"
+    [buttons]="alertButtons"
+    (didDismiss)="isResetAlertOpen.set(false)"
+  ></ion-alert>
+
+  <ion-toast
+    [isOpen]="isToastOpen()"
+    [message]="toastMessage()"
+    [duration]="2500"
+    (didDismiss)="isToastOpen.set(false)"
+  ></ion-toast>
+</ion-content>

@@ -1,0 +1,170 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/posts" text="Posts"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Post Review</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  @if (post(); as p) {
+    <div class="content-wrapper">
+      <!-- Moderation Status Alert Banner -->
+      <div class="status-banner" [class.banner-moderated]="p.moderated" [class.banner-active]="!p.moderated">
+        <div class="banner-icon">
+          <ion-icon [name]="p.moderated ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+        </div>
+        <div class="banner-body">
+          <h3 class="banner-title">
+            {{ p.moderated ? 'Post is Hidden by Moderation' : 'Post is Active & Public' }}
+          </h3>
+          @if (p.moderated) {
+            <p class="banner-reason">Reason: "{{ p.moderationReason }}"</p>
+            <span class="banner-date">Moderated on: {{ p.moderatedAt }}</span>
+          } @else {
+            <p class="banner-sub">This post is discoverable in the Community Feed, Map, and Search listings.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Main Post Card -->
+      <ion-card class="review-card">
+        <ion-card-content>
+          <div class="post-type-row">
+            <span class="type-pill" [class.offer]="p.type === 'offer'">
+              {{ p.type === 'offer' ? 'Service Offer' : 'Service Request' }}
+            </span>
+            <span class="status-badge">{{ p.status }}</span>
+          </div>
+
+          <h2 class="post-title">{{ p.title }}</h2>
+
+          <div class="meta-row">
+            <span class="meta-badge">Category: {{ p.category }}</span>
+            <span class="meta-amount">
+              Rate/Budget: ₱{{ p.amount || 'Negotiable' }}
+            </span>
+            <span class="meta-date">Posted: {{ p.createdAt }}</span>
+          </div>
+
+          <div class="desc-box">
+            <label class="box-label">Post Description</label>
+            <p class="desc-text">{{ p.description }}</p>
+          </div>
+
+          <!-- Author Summary Card Link -->
+          <div class="author-panel" [routerLink]="['/admin/user', p.authorId]">
+            <div class="author-avatar">
+              <ion-icon name="person-outline"></ion-icon>
+            </div>
+            <div class="author-info">
+              <span class="author-label">Author</span>
+              <span class="author-name">{{ p.authorName }}</span>
+              <span class="author-tag">{{ p.authorTag === 'provider' ? 'Service Provider' : 'Client' }} (ID: {{ p.authorId }})</span>
+            </div>
+            <ion-icon name="open-outline" class="author-open"></ion-icon>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Moderation Actions Card -->
+      <ion-card class="actions-card">
+        <ion-card-header>
+          <ion-card-title>Administrative Post Actions</ion-card-title>
+          <ion-card-subtitle>Written administrative justification is required for hiding or restoring posts.</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          @if (activeAction() === null) {
+            <div class="actions-grid">
+              @if (!p.moderated) {
+                <ion-button color="danger" expand="block" (click)="openAction('hide')">
+                  <ion-icon name="eye-off-outline" slot="start"></ion-icon>
+                  Hide Post from Public Feed
+                </ion-button>
+              } @else {
+                <ion-button color="success" expand="block" (click)="openAction('restore')">
+                  <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+                  Lift Restriction & Restore Post
+                </ion-button>
+              }
+            </div>
+          } @else {
+            <div class="action-form">
+              @if (activeAction() === 'hide') {
+                <h4 class="form-title text-danger">Hide Post</h4>
+                <p class="form-desc">The post will immediately be removed from the public feed and search results.</p>
+              } @else {
+                <h4 class="form-title text-success">Restore Post</h4>
+                <p class="form-desc">Removes moderation restrictions. The post will return to public discovery if eligible.</p>
+              }
+
+              <div class="form-group">
+                <label>Written Decision Rationale (Required)</label>
+                <ion-textarea
+                  [value]="actionReason"
+                  (ionInput)="actionReason = $event.detail.value || ''"
+                  placeholder="Detail the administrative basis for this action..."
+                  rows="3"
+                  class="custom-textarea"
+                ></ion-textarea>
+              </div>
+
+              <div class="form-btn-row">
+                <ion-button fill="outline" color="medium" (click)="cancelAction()">
+                  Cancel
+                </ion-button>
+
+                @if (activeAction() === 'hide') {
+                  <ion-button color="danger" [disabled]="!actionReason.trim()" (click)="submitHide()">
+                    Confirm Hide Post
+                  </ion-button>
+                } @else {
+                  <ion-button color="success" [disabled]="!actionReason.trim()" (click)="submitRestore()">
+                    Confirm Restore Post
+                  </ion-button>
+                }
+              </div>
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Related Reports Section -->
+      <div class="reports-section">
+        <h3 class="section-title">Related User Reports ({{ relatedReports().length }})</h3>
+
+        <div class="reports-list">
+          @for (report of relatedReports(); track report.id) {
+            <div class="report-item-card" [routerLink]="['/admin/report', report.id]">
+              <div class="report-header">
+                <span class="report-reason">{{ report.reason }}</span>
+                <span class="report-status" [class.resolved]="report.status === 'Resolved'">{{ report.status }}</span>
+              </div>
+              <p class="report-explanation">"{{ report.explanation }}"</p>
+              <div class="report-meta">
+                <span>Reporter: {{ report.reporterId }}</span>
+                <span>Date: {{ report.createdAt }}</span>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-reports">No user reports have been filed against this post.</div>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="not-found">
+      <h3>Post Not Found</h3>
+      <p>The requested post could not be located.</p>
+      <ion-button routerLink="/admin/tabs/posts" fill="outline">Return to Posts List</ion-button>
+    </div>
+  }
+
+  <ion-toast
+    [isOpen]="isToastOpen"
+    [message]="toastMessage"
+    [duration]="2500"
+    (didDismiss)="isToastOpen = false"
+  ></ion-toast>
+</ion-content>

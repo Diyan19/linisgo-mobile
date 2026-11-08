@@ -1,0 +1,79 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/more" text="More"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Appeals Management</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1 class="page-title">Moderation Appeals</h1>
+      <p class="page-subtitle">Review formal appeals against post takedowns and account suspensions.</p>
+    </div>
+
+    <!-- Searchbar -->
+    <ion-searchbar
+      [value]="searchQuery()"
+      placeholder="Search appeals by appellant, target, reason..."
+      (ionInput)="onSearch($event)"
+      class="custom-search"
+    ></ion-searchbar>
+
+    <!-- Filter Segment -->
+    <ion-segment [value]="selectedFilter()" (ionChange)="onFilterChange($event)" class="filter-segment">
+      <ion-segment-button value="all">
+        <ion-label>All ({{ dataService.appealsSignal().length }})</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="Pending">
+        <ion-label>Pending</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="Approved">
+        <ion-label>Approved</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="Rejected">
+        <ion-label>Rejected</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <!-- Appeals List -->
+    <div class="appeals-list">
+      @for (appeal of filteredAppeals(); track appeal.id) {
+        <ion-card class="appeal-card" [routerLink]="['/admin/appeal', appeal.id]">
+          <ion-card-content>
+            <div class="appeal-top-row">
+              <span class="target-type" [class.type-account]="appeal.targetType === 'account'">
+                <ion-icon [name]="appeal.targetType === 'account' ? 'person-outline' : 'documents-outline'"></ion-icon>
+                {{ appeal.targetType | uppercase }}: #{{ appeal.targetId }}
+              </span>
+              <span class="status-pill" [class.status-pending]="appeal.status === 'Pending'"
+                [class.status-approved]="appeal.status === 'Approved'"
+                [class.status-rejected]="appeal.status === 'Rejected'">
+                {{ appeal.status }}
+              </span>
+            </div>
+
+            <p class="appeal-explanation">"{{ appeal.explanation }}"</p>
+
+            <div class="appeal-footer-row">
+              <span class="meta-appellant">Appellant: <b>{{ appeal.appellantId }}</b></span>
+              <span class="meta-date">{{ appeal.createdAt }}</span>
+              <ion-button fill="clear" size="small" class="review-btn">
+                Review Appeal
+                <ion-icon name="chevron-forward-outline" slot="end"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="ribbon-outline"></ion-icon>
+          <h3>No Appeals Found</h3>
+          <p>No moderation appeals match your filter selection.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

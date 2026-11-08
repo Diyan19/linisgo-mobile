@@ -1,0 +1,176 @@
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <!-- Header Banner -->
+    <div class="dashboard-banner">
+      <div class="banner-text">
+        <span class="banner-tag">System Administration</span>
+        <h1 class="banner-title">Operations Console</h1>
+        <p class="banner-desc">Real-time household cleaning service discovery governance for Oriental Mindoro.</p>
+      </div>
+    </div>
+
+    <!-- 6 Metric Cards Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card" routerLink="/admin/tabs/users">
+        <div class="metric-icon users-icon">
+          <ion-icon name="people-outline"></ion-icon>
+        </div>
+        <div class="metric-data">
+          <span class="metric-num">{{ dataService.adminStats().totalUsers }}</span>
+          <span class="metric-label">Registered Users</span>
+        </div>
+      </div>
+
+      <div class="metric-card" routerLink="/admin/tabs/posts">
+        <div class="metric-icon posts-icon">
+          <ion-icon name="documents-outline"></ion-icon>
+        </div>
+        <div class="metric-data">
+          <span class="metric-num">{{ dataService.adminStats().publishedPosts }}</span>
+          <span class="metric-label">Published Posts</span>
+        </div>
+      </div>
+
+      <div class="metric-card" routerLink="/admin/tabs/reports">
+        <div class="metric-icon reports-icon">
+          <ion-icon name="shield-alert-outline"></ion-icon>
+        </div>
+        <div class="metric-data">
+          <span class="metric-num text-danger">{{ dataService.adminStats().pendingReports }}</span>
+          <span class="metric-label">Pending Reports</span>
+        </div>
+      </div>
+
+      <div class="metric-card" routerLink="/admin/appeals">
+        <div class="metric-icon appeals-icon">
+          <ion-icon name="ribbon-outline"></ion-icon>
+        </div>
+        <div class="metric-data">
+          <span class="metric-num text-warning">{{ dataService.adminStats().pendingAppeals }}</span>
+          <span class="metric-label">Pending Appeals</span>
+        </div>
+      </div>
+
+      <div class="metric-card" routerLink="/admin/tabs/users">
+        <div class="metric-icon suspended-icon">
+          <ion-icon name="ban-outline"></ion-icon>
+        </div>
+        <div class="metric-data">
+          <span class="metric-num">{{ dataService.adminStats().suspendedAccounts }}</span>
+          <span class="metric-label">Suspended Accounts</span>
+        </div>
+      </div>
+
+      <div class="metric-card" routerLink="/tabs/map">
+        <div class="metric-icon map-icon">
+          <ion-icon name="map-outline"></ion-icon>
+        </div>
+        <div class="metric-data">
+          <span class="metric-num">{{ dataService.adminStats().mapVisibleProfiles }}</span>
+          <span class="metric-label">Map-Visible Profiles</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Navigation Modules -->
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Management Modules</h2>
+      </div>
+
+      <div class="quick-nav-grid">
+        <a routerLink="/admin/tabs/users" class="nav-tile">
+          <ion-icon name="people-outline"></ion-icon>
+          <div class="tile-content">
+            <span class="tile-title">User Accounts</span>
+            <span class="tile-desc">Search, warnings, suspensions & lift</span>
+          </div>
+          <ion-icon name="arrow-forward-outline" class="tile-arrow"></ion-icon>
+        </a>
+
+        <a routerLink="/admin/tabs/posts" class="nav-tile">
+          <ion-icon name="documents-outline"></ion-icon>
+          <div class="tile-content">
+            <span class="tile-title">Service Posts</span>
+            <span class="tile-desc">Requests, offers, moderation & hiding</span>
+          </div>
+          <ion-icon name="arrow-forward-outline" class="tile-arrow"></ion-icon>
+        </a>
+
+        <a routerLink="/admin/tabs/reports" class="nav-tile">
+          <ion-icon name="shield-alert-outline"></ion-icon>
+          <div class="tile-content">
+            <span class="tile-title">User Reports</span>
+            <span class="tile-desc">Investigate violations & resolve queue</span>
+          </div>
+          <ion-icon name="arrow-forward-outline" class="tile-arrow"></ion-icon>
+        </a>
+
+        <a routerLink="/admin/appeals" class="nav-tile">
+          <ion-icon name="ribbon-outline"></ion-icon>
+          <div class="tile-content">
+            <span class="tile-title">Appeals Queue</span>
+            <span class="tile-desc">Review suspensions & post reinstatements</span>
+          </div>
+          <ion-icon name="arrow-forward-outline" class="tile-arrow"></ion-icon>
+        </a>
+
+        <a routerLink="/admin/audit-logs" class="nav-tile">
+          <ion-icon name="list-outline"></ion-icon>
+          <div class="tile-content">
+            <span class="tile-title">Audit History</span>
+            <span class="tile-desc">Read-only administrator activity logs</span>
+          </div>
+          <ion-icon name="arrow-forward-outline" class="tile-arrow"></ion-icon>
+        </a>
+
+        <a routerLink="/admin/system-status" class="nav-tile">
+          <ion-icon name="hardware-chip-outline"></ion-icon>
+          <div class="tile-content">
+            <span class="tile-title">System Status</span>
+            <span class="tile-desc">Service integration & health metrics</span>
+          </div>
+          <ion-icon name="arrow-forward-outline" class="tile-arrow"></ion-icon>
+        </a>
+      </div>
+    </div>
+
+    <!-- Recent Administrative Activities -->
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Recent Administrative Activities</h2>
+        <a routerLink="/admin/audit-logs" class="see-all-link">View All Logs ›</a>
+      </div>
+
+      <div class="activity-list">
+        @for (log of dataService.auditLogsSignal().slice(0, 5); track log.id) {
+          <div class="activity-item">
+            <div class="activity-top">
+              <span class="badge" [class.badge-danger]="log.actionType.includes('Suspension') || log.actionType.includes('Hide')"
+                [class.badge-warning]="log.actionType.includes('Warning')"
+                [class.badge-success]="log.actionType.includes('Lift') || log.actionType.includes('Approve') || log.actionType.includes('Restore')"
+                [class.badge-info]="log.actionType.includes('Report')">
+                {{ log.actionType }}
+              </span>
+              <span class="activity-time">
+                <ion-icon name="time-outline"></ion-icon>
+                {{ log.timestamp }}
+              </span>
+            </div>
+            <div class="activity-title">
+              Target: <b>{{ log.targetName || (log.targetType + ' #' + log.targetId) }}</b>
+            </div>
+            <div class="activity-reason">
+              Reason: "{{ log.reason }}"
+            </div>
+            <div class="activity-result">
+              Result: {{ log.result }}
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-activity">No administrative activities logged yet.</div>
+        }
+      </div>
+    </div>
+  </div>
+</ion-content>

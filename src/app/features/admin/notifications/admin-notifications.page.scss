@@ -1,0 +1,150 @@
+.page-content {
+  --background: #f8fafc;
+}
+
+.content-wrapper {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.mark-all-btn {
+  --color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  .header-text {
+    .page-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 4px 0;
+    }
+
+    .page-subtitle {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin: 0;
+      line-height: 1.4;
+    }
+  }
+
+  .unread-pill {
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 3px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+}
+
+.notifs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notif-card {
+  margin: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: none;
+
+  &.unread {
+    border-color: #93c5fd;
+    background: #f0f7ff;
+  }
+
+  ion-card-content {
+    padding: 14px;
+  }
+}
+
+.notif-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 6px;
+
+  .title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .dot-unread {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2563eb;
+      flex-shrink: 0;
+    }
+
+    .notif-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+  }
+
+  .notif-time {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+}
+
+.notif-detail {
+  font-size: 0.85rem;
+  color: #475569;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+.notif-actions {
+  display: flex;
+  justify-content: flex-end;
+
+  .toggle-btn {
+    --color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.empty-notifs {
+  text-align: center;
+  padding: 50px 20px;
+  color: #94a3b8;
+
+  ion-icon {
+    font-size: 3rem;
+    margin-bottom: 8px;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #475569;
+    margin: 0 0 4px 0;
+  }
+
+  p {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+}

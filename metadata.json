@@ -1,0 +1,7 @@
+{
+  "name": "LinisGo Finder",
+  "description": "Real-time household cleaning service discovery application for Oriental Mindoro, Philippines.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

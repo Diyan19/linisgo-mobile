@@ -1,0 +1,112 @@
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <!-- Admin Header Card -->
+    <div class="admin-badge-banner">
+      <div class="admin-icon">
+        <ion-icon name="shield-checkmark-outline"></ion-icon>
+      </div>
+      <div class="admin-info">
+        <h2 class="admin-name">Administrator Console</h2>
+        <span class="admin-email">admin&#64;linisgo.demo</span>
+        <span class="admin-desc">Oriental Mindoro Governance & Supervision</span>
+      </div>
+    </div>
+
+    <!-- Navigation Hub List -->
+    <div class="hub-menu">
+      <!-- Appeals Management -->
+      <a routerLink="/admin/appeals" class="menu-item">
+        <div class="item-left">
+          <div class="item-icon-box appeals-icon">
+            <ion-icon name="ribbon-outline"></ion-icon>
+          </div>
+          <div class="item-text">
+            <span class="item-title">Appeals Management</span>
+            <span class="item-desc">Review account suspension and post takedown appeals</span>
+          </div>
+        </div>
+        <div class="item-right">
+          @if (dataService.adminStats().pendingAppeals > 0) {
+            <ion-badge color="warning">{{ dataService.adminStats().pendingAppeals }} Pending</ion-badge>
+          }
+          <ion-icon name="chevron-forward-outline" class="item-arrow"></ion-icon>
+        </div>
+      </a>
+
+      <!-- Admin In-App Notifications -->
+      <a routerLink="/admin/notifications" class="menu-item">
+        <div class="item-left">
+          <div class="item-icon-box notifs-icon">
+            <ion-icon name="notifications-outline"></ion-icon>
+          </div>
+          <div class="item-text">
+            <span class="item-title">Admin Notifications</span>
+            <span class="item-desc">Review alerts for reports, appeals, and safety events</span>
+          </div>
+        </div>
+        <div class="item-right">
+          @if (dataService.unreadAdminNotificationsCount() > 0) {
+            <ion-badge color="danger">{{ dataService.unreadAdminNotificationsCount() }}</ion-badge>
+          }
+          <ion-icon name="chevron-forward-outline" class="item-arrow"></ion-icon>
+        </div>
+      </a>
+
+      <!-- Audit Logs History -->
+      <a routerLink="/admin/audit-logs" class="menu-item">
+        <div class="item-left">
+          <div class="item-icon-box audit-icon">
+            <ion-icon name="list-outline"></ion-icon>
+          </div>
+          <div class="item-text">
+            <span class="item-title">Audit Logs History</span>
+            <span class="item-desc">Read-only immutable record of administrative actions</span>
+          </div>
+        </div>
+        <div class="item-right">
+          <ion-icon name="chevron-forward-outline" class="item-arrow"></ion-icon>
+        </div>
+      </a>
+
+      <!-- System Status -->
+      <a routerLink="/admin/system-status" class="menu-item">
+        <div class="item-left">
+          <div class="item-icon-box system-icon">
+            <ion-icon name="hardware-chip-outline"></ion-icon>
+          </div>
+          <div class="item-text">
+            <span class="item-title">System Status</span>
+            <span class="item-desc">Integration status for backend, Firebase, Leaflet & media</span>
+          </div>
+        </div>
+        <div class="item-right">
+          <ion-icon name="chevron-forward-outline" class="item-arrow"></ion-icon>
+        </div>
+      </a>
+
+      <!-- Admin Settings -->
+      <a routerLink="/admin/settings" class="menu-item">
+        <div class="item-left">
+          <div class="item-icon-box settings-icon">
+            <ion-icon name="settings-outline"></ion-icon>
+          </div>
+          <div class="item-text">
+            <span class="item-title">Admin Settings</span>
+            <span class="item-desc">Demo session controls and sample data reset</span>
+          </div>
+        </div>
+        <div class="item-right">
+          <ion-icon name="chevron-forward-outline" class="item-arrow"></ion-icon>
+        </div>
+      </a>
+    </div>
+
+    <!-- Logout Action -->
+    <div class="logout-section">
+      <ion-button color="danger" fill="outline" expand="block" (click)="onLogout()">
+        <ion-icon name="log-out-outline" slot="start"></ion-icon>
+        Log Out of Administrator Console
+      </ion-button>
+    </div>
+  </div>
+</ion-content>

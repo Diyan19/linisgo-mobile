@@ -1,0 +1,74 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Notifications</ion-title>
+    <ion-buttons slot="end">
+      @if (dataService.unreadNotificationsCount() > 0) {
+        <ion-button (click)="markAllRead()" size="small" class="mark-all-btn">
+          <ion-icon name="checkmark-done-outline" slot="start"></ion-icon>
+          Mark all read
+        </ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <div class="intro-left">
+        <h1 class="page-title">Notification Center</h1>
+        <p class="page-subtitle">Stay informed about application updates, moderation alerts, and community notices.</p>
+      </div>
+      @if (dataService.unreadNotificationsCount() > 0) {
+        <ion-badge color="danger" class="unread-pill">
+          {{ dataService.unreadNotificationsCount() }} Unread
+        </ion-badge>
+      }
+    </div>
+
+    <!-- Notifications List -->
+    <div class="notif-list">
+      @for (notif of dataService.myNotifications(); track notif.id) {
+        <div class="notif-card" [class.unread]="!notif.read">
+          <div class="notif-status-indicator">
+            @if (!notif.read) {
+              <span class="blue-dot" title="Unread"></span>
+            }
+          </div>
+
+          <div class="notif-body">
+            <div class="notif-head">
+              <h2 class="notif-title">{{ notif.title }}</h2>
+              <span class="notif-time">{{ notif.createdAt }}</span>
+            </div>
+            <p class="notif-detail">{{ notif.detail }}</p>
+
+            <div class="notif-actions">
+              <button
+                class="status-toggle-btn"
+                (click)="toggleRead(notif, $event)"
+              >
+                @if (notif.read) {
+                  <ion-icon name="mail-unread-outline"></ion-icon>
+                  <span>Mark as Unread</span>
+                } @else {
+                  <ion-icon name="mail-open-outline"></ion-icon>
+                  <span>Mark as Read</span>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="notifications-outline" class="empty-icon"></ion-icon>
+          <p class="empty-title">You're all caught up!</p>
+          <p class="empty-desc">You have no new notifications or alerts at this time.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

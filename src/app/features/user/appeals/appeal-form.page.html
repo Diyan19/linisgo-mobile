@@ -1,0 +1,71 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>File an Appeal</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">Submit Moderation Appeal</h1>
+      <p class="page-subtitle">If you believe your post or account was hidden or restricted in error, request a re-evaluation.</p>
+    </div>
+
+    @if (feedbackMessage) {
+      <div class="toast-success">{{ feedbackMessage }}</div>
+    }
+
+    <form [formGroup]="appealForm" (ngSubmit)="onSubmit()" class="appeal-form">
+      <div class="form-card">
+        <label for="appeal-type" class="field-label">Appeal Target</label>
+        <select id="appeal-type" formControlName="targetType" class="custom-select">
+          <option value="post">Cleaning Post Restriction</option>
+          <option value="account">Account State / Warning</option>
+        </select>
+      </div>
+
+      <div class="form-card">
+        <label for="appeal-target-id" class="field-label">Post or Account Reference ID *</label>
+        <input
+          id="appeal-target-id"
+          type="text"
+          formControlName="targetId"
+          placeholder="e.g. p1 or my-account"
+          class="custom-input"
+        />
+        @if (appealForm.get('targetId')?.invalid && appealForm.get('targetId')?.touched) {
+          <span class="field-error">Reference identifier is required.</span>
+        }
+      </div>
+
+      <div class="form-card">
+        <label for="appeal-explanation" class="field-label">Justification / Reason for Reconsideration *</label>
+        <textarea
+          id="appeal-explanation"
+          formControlName="explanation"
+          placeholder="Please explain in detail why the moderation decision should be reconsidered..."
+          rows="5"
+          class="custom-textarea"
+        ></textarea>
+        @if (appealForm.get('explanation')?.invalid && appealForm.get('explanation')?.touched) {
+          <span class="field-error">Please provide at least 10 characters explaining your appeal.</span>
+        }
+      </div>
+
+      <div class="action-buttons">
+        <ion-button expand="block" type="submit" color="primary" [disabled]="isSubmitting" class="submit-btn">
+          <ion-icon name="scale-outline" slot="start"></ion-icon>
+          {{ isSubmitting ? 'Submitting...' : 'Submit Appeal' }}
+        </ion-button>
+
+        <ion-button expand="block" type="button" fill="outline" color="medium" (click)="onCancel()" class="cancel-btn">
+          <ion-icon name="close-outline" slot="start"></ion-icon>
+          Cancel
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>

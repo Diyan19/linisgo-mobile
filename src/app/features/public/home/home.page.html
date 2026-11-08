@@ -1,0 +1,83 @@
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-placeholder">
+        <span class="placeholder-tag">[ LinisGo Finder Community Banner ]</span>
+      </div>
+
+      <div class="hero-badge">
+        <ion-badge color="secondary">Oriental Mindoro, Philippines</ion-badge>
+      </div>
+
+      <h1 class="hero-heading">Find cleaning help near you</h1>
+      <p class="hero-subtitle">
+        Discover household cleaning service offers and requests from local cleaning service providers and clients in your community.
+      </p>
+
+      <div class="hero-cta-group">
+        <ion-button expand="block" color="primary" routerLink="/tabs/feed" class="hero-btn">
+          <ion-icon name="newspaper-outline" slot="start"></ion-icon>
+          Explore the community ›
+        </ion-button>
+        <ion-button expand="block" fill="outline" color="primary" routerLink="/tabs/map" class="hero-btn">
+          <ion-icon name="navigate-outline" slot="start"></ion-icon>
+          Explore nearby users ›
+        </ion-button>
+      </div>
+    </section>
+
+    <!-- Cleaning Categories Section -->
+    <section class="section">
+      <h2 class="section-title">Cleaning Categories</h2>
+      <ion-grid class="category-grid">
+        <ion-row>
+          <ion-col size="6">
+            <button class="cat-card" (click)="onSelectCategory('General')">
+              <span class="cat-name">General cleaning</span>
+              <span class="cat-arrow">›</span>
+            </button>
+          </ion-col>
+          <ion-col size="6">
+            <button class="cat-card" (click)="onSelectCategory('Deep')">
+              <span class="cat-name">Deep cleaning</span>
+              <span class="cat-arrow">›</span>
+            </button>
+          </ion-col>
+          <ion-col size="6">
+            <button class="cat-card" (click)="onSelectCategory('Kitchen')">
+              <span class="cat-name">Kitchen cleaning</span>
+              <span class="cat-arrow">›</span>
+            </button>
+          </ion-col>
+          <ion-col size="6">
+            <button class="cat-card" (click)="onSelectCategory('Bathroom')">
+              <span class="cat-name">Bathroom cleaning</span>
+              <span class="cat-arrow">›</span>
+            </button>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </section>
+
+    <!-- Latest Community Posts -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Latest community posts</h2>
+        <a routerLink="/tabs/feed" class="see-all-link">View all ›</a>
+      </div>
+
+      @for (post of latestPosts(); track post.id) {
+        <app-post-card [post]="post" [showAuthor]="true"></app-post-card>
+      }
+    </section>
+
+    <!-- Register CTA Button -->
+    <section class="register-section">
+      <ion-button expand="block" fill="outline" color="secondary" routerLink="/register">
+        <ion-icon name="person-add-outline" slot="start"></ion-icon>
+        Create a free demo account ›
+      </ion-button>
+    </section>
+  </div>
+</ion-content>

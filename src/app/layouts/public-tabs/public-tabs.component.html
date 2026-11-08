@@ -1,0 +1,39 @@
+<ion-header [translucent]="true" class="public-header">
+  <ion-toolbar color="primary">
+    <ion-title>
+      <div class="brand-title">
+        <span class="brand-name">LinisGo Finder</span>
+      </div>
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="/login" fill="outline" size="small" class="login-nav-btn">
+        <ion-icon name="log-in-outline" slot="start"></ion-icon>
+        Login
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-tabs class="public-tabs-container">
+  <ion-tab-bar slot="bottom" class="custom-tab-bar">
+    <ion-tab-button tab="home" href="/tabs/home">
+      <ion-icon name="home-outline"></ion-icon>
+      <ion-label>Home</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="feed" href="/tabs/feed">
+      <ion-icon name="newspaper-outline"></ion-icon>
+      <ion-label>Feed</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="map" href="/tabs/map">
+      <ion-icon name="map-outline"></ion-icon>
+      <ion-label>Map</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="search" href="/tabs/search">
+      <ion-icon name="search-outline"></ion-icon>
+      <ion-label>Search</ion-label>
+    </ion-tab-button>
+  </ion-tab-bar>
+</ion-tabs>

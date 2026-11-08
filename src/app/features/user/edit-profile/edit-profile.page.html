@@ -1,0 +1,99 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Edit Profile</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">Personal Profile Details</h1>
+      <p class="page-subtitle">Update your display name, description, and direct contact avenues.</p>
+    </div>
+
+    @if (feedbackMessage) {
+      <div class="toast-success">{{ feedbackMessage }}</div>
+    }
+
+    <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form">
+      <!-- Full Name -->
+      <div class="form-card">
+        <label for="profile-name" class="field-label">Display Name *</label>
+        <input
+          id="profile-name"
+          type="text"
+          formControlName="name"
+          placeholder="e.g. Juan Dela Cruz"
+          class="custom-input"
+        />
+        @if (profileForm.get('name')?.invalid && profileForm.get('name')?.touched) {
+          <span class="field-error">Please provide a valid name (at least 2 characters).</span>
+        }
+      </div>
+
+      <!-- Bio / Description -->
+      <div class="form-card">
+        <label for="profile-bio" class="field-label">About / Service Description</label>
+        <textarea
+          id="profile-bio"
+          formControlName="bio"
+          placeholder="Describe your household cleaning needs or the cleaning services you offer..."
+          rows="4"
+          class="custom-textarea"
+        ></textarea>
+        <span class="field-hint">This summary is shown on your public profile card.</span>
+      </div>
+
+      <!-- Contact Phone -->
+      <div class="form-card">
+        <label for="profile-phone" class="field-label">Contact Phone Number</label>
+        <input
+          id="profile-phone"
+          type="tel"
+          formControlName="contactPhone"
+          placeholder="e.g. 0912-345-6789"
+          class="custom-input"
+        />
+        <span class="field-hint">You can choose whether this is shown publicly in Settings.</span>
+      </div>
+
+      <!-- Facebook Profile Name / URL -->
+      <div class="form-card">
+        <label for="profile-fb" class="field-label">Facebook Profile / Link</label>
+        <input
+          id="profile-fb"
+          type="text"
+          formControlName="contactFacebook"
+          placeholder="e.g. Juan Dela Cruz (Calapan)"
+          class="custom-input"
+        />
+        <span class="field-hint">Convenient for clients and providers in Oriental Mindoro who connect via Facebook.</span>
+      </div>
+
+      <!-- Availability Toggle -->
+      <div class="form-card toggle-card">
+        <div class="toggle-info">
+          <label class="field-label" style="margin-bottom: 2px;">Availability Status</label>
+          <span class="field-hint">Show whether you are currently accepting cleaning inquiries.</span>
+        </div>
+        <ion-toggle formControlName="available" color="success"></ion-toggle>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <ion-button expand="block" type="submit" color="primary" [disabled]="isSaving" class="submit-btn">
+          <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+          {{ isSaving ? 'Saving...' : 'Save Profile Changes' }}
+        </ion-button>
+
+        <ion-button expand="block" type="button" fill="outline" color="medium" (click)="onCancel()" class="cancel-btn">
+          <ion-icon name="close-outline" slot="start"></ion-icon>
+          Cancel
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>

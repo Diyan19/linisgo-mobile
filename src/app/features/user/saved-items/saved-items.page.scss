@@ -1,0 +1,271 @@
+.page-content {
+  --background: #f4f6f8;
+}
+
+.content-wrapper {
+  max-width: 540px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.header-intro {
+  margin-bottom: 14px;
+
+  .page-title {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #24313b;
+    margin: 0 0 4px 0;
+  }
+
+  .page-subtitle {
+    font-size: 0.85rem;
+    color: #657580;
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+.segment-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+
+  .seg-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid #cbd5da;
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4b5a64;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    ion-icon {
+      font-size: 1rem;
+    }
+
+    &.active {
+      background: #20333f;
+      border-color: #20333f;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(32, 51, 63, 0.2);
+    }
+  }
+}
+
+.toast-alert {
+  background: #e8f4fd;
+  border: 1px solid #b6daf2;
+  color: #195279;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saved-item-card {
+  background: #ffffff;
+  border: 1px solid #dce2e5;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .type-badge {
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+  }
+
+  .item-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #24313b;
+    margin: 0 0 4px 0;
+  }
+
+  .item-sub {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #2563eb;
+    margin: 0 0 8px 0;
+  }
+
+  .item-snippet {
+    font-size: 0.84rem;
+    color: #4b5a64;
+    line-height: 1.45;
+    margin: 0 0 10px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .item-footer {
+    border-top: 1px solid #eef2f5;
+    padding-top: 8px;
+
+    .view-link {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #2b4354;
+    }
+  }
+}
+
+.remove-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background: #fca5a5;
+  }
+
+  ion-icon {
+    font-size: 0.88rem;
+  }
+}
+
+.saved-user-card {
+  display: flex;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #dce2e5;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  .user-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #2b4354;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .user-details {
+    flex: 1;
+
+    .user-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+
+      .user-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #24313b;
+        margin: 0;
+      }
+    }
+
+    .user-badges {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 4px;
+
+      .tag-badge, .avail-badge {
+        font-size: 0.68rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    }
+
+    .user-loc {
+      font-size: 0.76rem;
+      color: #64748b;
+      margin: 0 0 4px 0;
+    }
+
+    .user-bio-snippet {
+      font-size: 0.8rem;
+      color: #4b5a64;
+      line-height: 1.35;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 36px 16px;
+  background: #ffffff;
+  border: 1px dashed #cbd5da;
+  border-radius: 14px;
+
+  .empty-icon {
+    font-size: 2.2rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+  }
+
+  .empty-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #3b4e5b;
+    margin: 0 0 4px 0;
+  }
+
+  .empty-desc {
+    font-size: 0.82rem;
+    color: #657580;
+    margin: 0 0 16px 0;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

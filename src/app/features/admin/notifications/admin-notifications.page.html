@@ -1,0 +1,66 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/dashboard" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Admin Notifications</ion-title>
+    <ion-buttons slot="end">
+      @if (dataService.unreadAdminNotificationsCount() > 0) {
+        <ion-button (click)="markAllRead()" size="small" class="mark-all-btn">
+          <ion-icon name="checkmark-done-outline" slot="start"></ion-icon>
+          Mark all read
+        </ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <div class="header-text">
+        <h1 class="page-title">Administrative Notices</h1>
+        <p class="page-subtitle">Real-time alerts for safety complaints, moderation appeals, and system audit events.</p>
+      </div>
+      @if (dataService.unreadAdminNotificationsCount() > 0) {
+        <span class="unread-pill">{{ dataService.unreadAdminNotificationsCount()} Unread</span>
+      }
+    </div>
+
+    <div class="notifs-list">
+      @for (item of dataService.adminNotificationsSignal(); track item.id) {
+        <ion-card class="notif-card" [class.unread]="!item.read">
+          <ion-card-content>
+            <div class="notif-top">
+              <div class="title-wrap">
+                @if (!item.read) {
+                  <span class="dot-unread"></span>
+                }
+                <h3 class="notif-title">{{ item.title }}</h3>
+              </div>
+              <span class="notif-time">
+                <ion-icon name="time-outline"></ion-icon>
+                {{ item.createdAt }}
+              </span>
+            </div>
+
+            <p class="notif-detail">{{ item.detail }}</p>
+
+            <div class="notif-actions">
+              <ion-button fill="clear" size="small" (click)="toggleRead(item.id, item.read)" class="toggle-btn">
+                <ion-icon [name]="item.read ? 'ellipse-outline' : 'checkmark-outline'" slot="start"></ion-icon>
+                {{ item.read ? 'Mark as Unread' : 'Mark as Read' }}
+              </ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      } @empty {
+        <div class="empty-notifs">
+          <ion-icon name="notifications-outline"></ion-icon>
+          <h3>No Administrative Notifications</h3>
+          <p>Your moderation queue is quiet and up to date.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

@@ -1,0 +1,98 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/tabs/more" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Administrative Audit Logs</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="page-content">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1 class="page-title">Read-Only Audit Trail</h1>
+      <p class="page-subtitle">Immutable chronological record of moderation warnings, suspensions, post actions, and adjudication decisions.</p>
+    </div>
+
+    <!-- Searchbar -->
+    <ion-searchbar
+      [value]="searchQuery()"
+      placeholder="Search logs by action, target, reason, or result..."
+      (ionInput)="onSearch($event)"
+      class="custom-search"
+    ></ion-searchbar>
+
+    <!-- Filter Segment -->
+    <ion-segment [value]="selectedFilter()" (ionChange)="onFilterChange($event)" class="filter-segment">
+      <ion-segment-button value="all">
+        <ion-label>All</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="warning">
+        <ion-label>Warnings</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="suspension">
+        <ion-label>Suspensions</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="post">
+        <ion-label>Posts</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="report">
+        <ion-label>Reports</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="appeal">
+        <ion-label>Appeals</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <!-- Audit Logs Stream -->
+    <div class="logs-list">
+      @for (log of filteredLogs(); track log.id) {
+        <ion-card class="log-card">
+          <ion-card-content>
+            <div class="log-header">
+              <span class="action-badge" [class.badge-danger]="log.actionType.includes('Suspension') || log.actionType.includes('Hide')"
+                [class.badge-warning]="log.actionType.includes('Warning')"
+                [class.badge-success]="log.actionType.includes('Lift') || log.actionType.includes('Approve') || log.actionType.includes('Restore')"
+                [class.badge-info]="log.actionType.includes('Report')">
+                {{ log.actionType }}
+              </span>
+              <span class="log-time">
+                <ion-icon name="time-outline"></ion-icon>
+                {{ log.timestamp }}
+              </span>
+            </div>
+
+            <div class="target-row">
+              <span class="label">Target:</span>
+              <span class="target-name">
+                <b>{{ log.targetName || (log.targetType + ' #' + log.targetId) }}</b>
+                ({{ log.targetType | uppercase }} #{{ log.targetId }})
+              </span>
+            </div>
+
+            <div class="admin-row">
+              <span class="label">Enforced By:</span>
+              <span class="admin-id">{{ log.adminId }}</span>
+            </div>
+
+            <div class="reason-row">
+              <span class="label">Written Rationale:</span>
+              <span class="reason-text">"{{ log.reason }}"</span>
+            </div>
+
+            <div class="result-row">
+              <span class="label">Result:</span>
+              <span class="result-text">{{ log.result }}</span>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      } @empty {
+        <div class="empty-state">
+          <ion-icon name="list-outline"></ion-icon>
+          <h3>No Audit Records</h3>
+          <p>No administrative activity matches your search criteria.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

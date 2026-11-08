@@ -1,0 +1,59 @@
+<ion-card class="post-card">
+  @if (showAuthor()) {
+    <div class="author-row" [routerLink]="['/user-profile', post().authorId]">
+      <div class="avatar-circle">
+        {{ initial }}
+      </div>
+      <div class="author-meta">
+        <span class="author-name">{{ post().authorName }}</span>
+        <span class="author-tag-label">{{ tagLabel }} tag</span>
+      </div>
+    </div>
+  }
+
+  <div class="photo-placeholder">
+    <span class="placeholder-text">[ Optional Post Photo ]</span>
+  </div>
+
+  <ion-card-header>
+    <div class="card-top-meta">
+      <ion-badge [color]="typeColor">{{ typeLabel }}</ion-badge>
+      <span class="post-date">{{ post().createdAt }}</span>
+    </div>
+    <ion-card-title class="card-title">{{ post().title }}</ion-card-title>
+    <ion-card-subtitle class="card-category">{{ post().category }} Cleaning</ion-card-subtitle>
+  </ion-card-header>
+
+  <ion-card-content>
+    <p class="desc-snippet">{{ post().description }}</p>
+
+    <div class="card-bottom-row">
+      <div class="price-box">
+        <span class="price-label">{{ post().type === 'request' ? 'Budget' : 'Rate' }}:</span>
+        <span class="price-val">{{ formattedAmount }}</span>
+      </div>
+      <ion-button
+        size="small"
+        fill="outline"
+        color="primary"
+        [routerLink]="['/post', post().id]"
+      >
+        Details ›
+      </ion-button>
+    </div>
+
+    @if (!isOwnPost) {
+      <div class="user-card-actions">
+        <button class="action-btn" (click)="toggleSave()">
+          <ion-icon [name]="isSaved ? 'bookmark' : 'bookmark-outline'" [class.saved]="isSaved"></ion-icon>
+          <span>{{ isSaved ? 'Saved' : 'Save post' }}</span>
+        </button>
+
+        <button class="action-btn report-btn" (click)="reportPost()">
+          <ion-icon name="flag-outline"></ion-icon>
+          <span>Report</span>
+        </button>
+      </div>
+    }
+  </ion-card-content>
+</ion-card>

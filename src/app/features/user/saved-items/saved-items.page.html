@@ -1,0 +1,123 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/user/tabs/profile" text="Back"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Saved Items</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding page-content">
+  <div class="content-wrapper">
+    <div class="header-intro">
+      <h1 class="page-title">My Bookmarks</h1>
+      <p class="page-subtitle">Access your saved cleaning service posts and preferred service providers or clients.</p>
+    </div>
+
+    <!-- Segment Switcher -->
+    <div class="segment-row">
+      <button
+        class="seg-btn"
+        [class.active]="activeSegment() === 'posts'"
+        (click)="setSegment('posts')"
+      >
+        <ion-icon name="document-text-outline"></ion-icon>
+        Saved Posts ({{ dataService.mySavedPosts().length }})
+      </button>
+      <button
+        class="seg-btn"
+        [class.active]="activeSegment() === 'users'"
+        (click)="setSegment('users')"
+      >
+        <ion-icon name="person-outline"></ion-icon>
+        Saved Profiles ({{ dataService.mySavedUsers().length }})
+      </button>
+    </div>
+
+    @if (toastMessage) {
+      <div class="toast-alert">{{ toastMessage }}</div>
+    }
+
+    <!-- Tab 1: Saved Posts -->
+    @if (activeSegment() === 'posts') {
+      <div class="items-list">
+        @for (post of dataService.mySavedPosts(); track post.id) {
+          <div class="saved-item-card" [routerLink]="['/post', post.id]">
+            <div class="item-head">
+              <ion-badge [color]="post.type === 'offer' ? 'primary' : 'tertiary'" class="type-badge">
+                {{ post.type === 'offer' ? 'Offer' : 'Request' }}
+              </ion-badge>
+              <button
+                class="remove-btn"
+                (click)="unsavePost(post, $event)"
+                aria-label="Remove bookmark"
+                title="Remove bookmark"
+              >
+                <ion-icon name="trash-outline"></ion-icon>
+                <span>Remove</span>
+              </button>
+            </div>
+
+            <h2 class="item-title">{{ post.title }}</h2>
+            <p class="item-sub">By {{ post.authorName }} · {{ post.category }} · {{ post.amount ? ('₱' + post.amount) : 'Negotiable' }}</p>
+            <p class="item-snippet">{{ post.description }}</p>
+
+            <div class="item-footer">
+              <span class="view-link">View Full Post →</span>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <ion-icon name="bookmark-outline" class="empty-icon"></ion-icon>
+            <p class="empty-title">No saved posts yet</p>
+            <p class="empty-desc">When browsing the Feed or Home page, click "Save" on any cleaning post to bookmark it here.</p>
+            <ion-button size="small" color="primary" routerLink="/user/tabs/feed">
+              Browse Community Feed
+            </ion-button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Tab 2: Saved Users -->
+    @if (activeSegment() === 'users') {
+      <div class="items-list">
+        @for (user of dataService.mySavedUsers(); track user.id) {
+          <div class="saved-user-card" [routerLink]="['/user-profile', user.id]">
+            <div class="user-avatar">{{ user.name.charAt(0).toUpperCase() }}</div>
+            <div class="user-details">
+              <div class="user-row-top">
+                <h2 class="user-name">{{ user.name }}</h2>
+                <button
+                  class="remove-btn"
+                  (click)="unsaveUser(user, $event)"
+                  aria-label="Remove saved profile"
+                  title="Remove saved profile"
+                >
+                  <ion-icon name="trash-outline"></ion-icon>
+                </button>
+              </div>
+              <div class="user-badges">
+                <ion-badge color="secondary" class="tag-badge">{{ getUserTagLabel(user.tag) }}</ion-badge>
+                <ion-badge [color]="user.available ? 'success' : 'medium'" class="avail-badge">
+                  {{ user.available ? 'Available' : 'Unavailable' }}
+                </ion-badge>
+              </div>
+              <p class="user-loc">{{ user.approxLocation?.label || 'Oriental Mindoro' }}</p>
+              <p class="user-bio-snippet">{{ user.bio }}</p>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <ion-icon name="person-outline" class="empty-icon"></ion-icon>
+            <p class="empty-title">No saved profiles yet</p>
+            <p class="empty-desc">Visit any public user profile from a post and bookmark them to keep their contact and service details handy.</p>
+            <ion-button size="small" color="primary" routerLink="/user/tabs/feed">
+              Find Cleaning Providers
+            </ion-button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</ion-content>
