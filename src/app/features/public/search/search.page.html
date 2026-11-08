@@ -2,40 +2,109 @@
   <div class="content-wrapper">
     <div class="search-header">
       <h1 class="page-title">Search & Discover</h1>
-      <p class="page-subtitle">Search names, cleaning services, and household needs across Oriental Mindoro.</p>
+      <p class="page-subtitle">Search names, cleaning services, and municipal coverage across Oriental Mindoro.</p>
     </div>
 
     <!-- Search Controls -->
     <div class="search-box">
       <ion-searchbar
         [value]="dataService.searchQuery()"
-        placeholder="Type to search posts, providers, or clients..."
+        placeholder="Type to search posts, providers, clients, or municipalities..."
         (ionInput)="onSearchChange($event)"
         class="custom-searchbar"
         debounce="150"
       ></ion-searchbar>
 
-      <div class="chip-row">
-        <button
-          class="filter-chip"
-          [class.active]="dataService.selectedTag() === 'all'"
-          (click)="onTagChange('all')"
+      <!-- Location Municipality Selector -->
+      <div style="margin-bottom: 10px;">
+        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 700; color: #3b4e5b; margin-bottom: 5px;">
+          <ion-icon name="location-outline" style="color: #2b4354;"></ion-icon>
+          Filter by Oriental Mindoro City / Municipality:
+        </label>
+        <ion-select
+          [value]="dataService.selectedLocationId()"
+          interface="popover"
+          (ionChange)="onLocationChange($event)"
+          style="background: #f4f7f9; border: 1px solid #cbd5da; border-radius: 8px; padding: 6px 10px; font-size: 0.84rem; font-weight: 700; color: #20333f; margin-bottom: 6px;"
         >
-          All Tags
-        </button>
+          <ion-select-option value="all">All Locations (Oriental Mindoro)</ion-select-option>
+          @for (loc of locations; track loc.id) {
+            <ion-select-option [value]="loc.id">{{ loc.name }}</ion-select-option>
+          }
+        </ion-select>
+
+        <!-- Location Mode Chips -->
+        <div class="chip-row" style="margin-bottom: 8px;">
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedLocationMode() === 'all'"
+            (click)="onLocationModeChange('all')"
+          >
+            All in {{ selectedLocationLabel }}
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedLocationMode() === 'requests-in'"
+            (click)="onLocationModeChange('requests-in')"
+          >
+            Service Requests in Location
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedLocationMode() === 'offers-covering'"
+            (click)="onLocationModeChange('offers-covering')"
+          >
+            Service Offers Covering Location
+          </button>
+        </div>
+      </div>
+
+      <!-- Profile Tag & Availability Chips -->
+      <div class="chip-row" style="justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'all'"
+            (click)="onTagChange('all')"
+          >
+            All Tags
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'client'"
+            (click)="onTagChange('client')"
+          >
+            Clients Only
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'provider'"
+            (click)="onTagChange('provider')"
+          >
+            Providers Only
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedAvailability() === 'available'"
+            (click)="onAvailabilityToggle()"
+          >
+            Available Only
+          </button>
+        </div>
+
         <button
-          class="filter-chip"
-          [class.active]="dataService.selectedTag() === 'client'"
-          (click)="onTagChange('client')"
+          type="button"
+          (click)="resetAllFilters()"
+          style="background: transparent; border: 0; font-size: 0.74rem; font-weight: 700; color: #526f83; cursor: pointer; padding: 4px 6px;"
         >
-          Clients Only
-        </button>
-        <button
-          class="filter-chip"
-          [class.active]="dataService.selectedTag() === 'provider'"
-          (click)="onTagChange('provider')"
-        >
-          Providers Only
+          Reset
         </button>
       </div>
     </div>
@@ -49,7 +118,7 @@
       @for (post of dataService.filteredPosts(); track post.id) {
         <app-post-card [post]="post" [showAuthor]="true"></app-post-card>
       } @empty {
-        <div class="empty-box">No matching posts found.</div>
+        <div class="empty-box">No matching posts found for the selected location and filters.</div>
       }
     </section>
 
@@ -72,7 +141,14 @@
                   {{ user.available ? 'Available' : 'Unavailable' }}
                 </ion-badge>
               </div>
-              <span class="user-sub">{{ getTagLabel(user.tag) }} · {{ user.approxLocation?.label }}</span>
+              <span class="user-sub">
+                {{ getTagLabel(user.tag) }}
+                @if (user.mapConsent && user.approxLocation?.label) {
+                  · {{ user.approxLocation?.label }}
+                } @else {
+                  · Map Location Private
+                }
+              </span>
               <p class="user-bio">{{ user.bio }}</p>
             </div>
             <div class="user-action">

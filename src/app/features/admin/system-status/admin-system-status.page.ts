@@ -104,10 +104,10 @@ export class AdminSystemStatusPage {
     {
       name: 'Leaflet & OpenStreetMap Engine',
       category: 'Mapping Engine',
-      status: 'Conceptual / Demo',
-      stateType: 'demo',
-      description: 'OpenStreetMap-compatible coordinates canvas for Oriental Mindoro municipal service discovery.',
-      note: 'Functional client demo canvas with GPS permission prompts and pin filters.',
+      status: 'Operational',
+      stateType: 'connected',
+      description: 'Interactive Leaflet map with OpenStreetMap tile attribution for Oriental Mindoro municipal post coverage and opt-in user area discovery.',
+      note: 'All 15 Oriental Mindoro municipalities supported; privacy-safe area markers enabled.',
     },
   ];
 

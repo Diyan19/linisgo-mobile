@@ -14,6 +14,12 @@ export interface CleaningPost {
   amount?: number | null;
   photoUrl?: string;
   status: PostStatus;
+  /** Structured municipality/city ID for Service Requests */
+  targetLocationId: string | null;
+  /** Structured municipality/city IDs for Service Offers */
+  coverageAreaIds: string[];
+  /** Optional public barangay or general area note (never an exact home address) */
+  optionalPublicAreaDescription: string | null;
   moderated: boolean;
   moderationReason?: string;
   moderatedAt?: string;

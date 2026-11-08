@@ -18,9 +18,14 @@ import {
   archiveOutline,
   checkmarkCircleOutline,
   refreshOutline,
+  locationOutline,
 } from 'ionicons/icons';
 import { PublicDataService } from '../../../core/services/public-data.service';
 import { CleaningPost, PostType } from '../../../shared/models/post.model';
+import {
+  getPostLocationSummary,
+  validatePostLocationForPublish,
+} from '../../../shared/models/location.model';
 
 @Component({
   selector: 'app-user-my-posts',
@@ -62,6 +67,7 @@ export class MyPostsPage {
       archiveOutline,
       checkmarkCircleOutline,
       refreshOutline,
+      locationOutline,
     });
   }
 
@@ -73,6 +79,10 @@ export class MyPostsPage {
     this.router.navigate(['/user/tabs/create'], { queryParams: { editId: post.id } });
   }
 
+  getLocationText(post: CleaningPost): string {
+    return getPostLocationSummary(post);
+  }
+
   togglePostStatus(post: CleaningPost): void {
     const oldStatus = post.status;
     let nextStatus = post.status;
@@ -80,8 +90,14 @@ export class MyPostsPage {
     if (oldStatus === 'open') nextStatus = 'closed';
     else if (oldStatus === 'closed') nextStatus = 'open';
     else if (oldStatus === 'active') nextStatus = 'closed';
-    else if (oldStatus === 'draft') nextStatus = post.type === 'request' ? 'open' : 'active';
-    else if (oldStatus === 'archived') nextStatus = post.type === 'request' ? 'open' : 'active';
+    else if (oldStatus === 'draft' || oldStatus === 'archived') {
+      const check = validatePostLocationForPublish(post);
+      if (!check.valid) {
+        this.showToast(check.error || 'Please edit this draft and select a location before publishing.');
+        return;
+      }
+      nextStatus = post.type === 'request' ? 'open' : 'active';
+    }
 
     this.dataService.changePostStatus(post.id, nextStatus);
     this.showToast(`Post status changed from ${oldStatus} to ${nextStatus}.`);
@@ -93,6 +109,11 @@ export class MyPostsPage {
   }
 
   restorePost(post: CleaningPost): void {
+    const check = validatePostLocationForPublish(post);
+    if (!check.valid) {
+      this.showToast(check.error || 'Please edit this post to select a location before restoring to active status.');
+      return;
+    }
     this.dataService.changePostStatus(post.id, post.type === 'request' ? 'open' : 'active');
     this.showToast(`Post "${post.title}" restored to active status.`);
   }
@@ -101,7 +122,7 @@ export class MyPostsPage {
     this.feedbackMessage = msg;
     setTimeout(() => {
       this.feedbackMessage = '';
-    }, 3000);
+    }, 3500);
   }
 
   getAmountText(post: CleaningPost): string {

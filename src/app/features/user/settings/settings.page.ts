@@ -1,5 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormGroup, FormControl } from '@angular/forms';
 import {
   IonHeader,
@@ -39,6 +39,7 @@ interface MunicipalityOption {
   styleUrls: ['./settings.page.scss'],
   standalone: true,
   imports: [
+    RouterLink,
     ReactiveFormsModule,
     IonHeader,
     IonToolbar,

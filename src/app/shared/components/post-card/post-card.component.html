@@ -25,6 +25,26 @@
   </ion-card-header>
 
   <ion-card-content>
+    <!-- Location / Coverage Area Row -->
+    <div class="location-coverage-row">
+      <div class="loc-header-line">
+        <ion-icon name="location-outline"></ion-icon>
+        <span class="loc-prefix">{{ locationPrefixLabel }}</span>
+        @if (locationTags.length > 0) {
+          <div class="loc-pills">
+            @for (locName of locationTags; track locName) {
+              <span class="loc-pill">{{ locName }}</span>
+            }
+          </div>
+        } @else {
+          <span class="loc-unspecified">Location not specified</span>
+        }
+      </div>
+      @if (post().optionalPublicAreaDescription) {
+        <div class="loc-optional-note">Area note: {{ post().optionalPublicAreaDescription }}</div>
+      }
+    </div>
+
     <p class="desc-snippet">{{ post().description }}</p>
 
     <div class="card-bottom-row">

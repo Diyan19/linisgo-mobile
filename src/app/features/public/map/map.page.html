@@ -1,85 +1,253 @@
 <ion-content [fullscreen]="true" class="ion-padding page-content">
   <div class="content-wrapper">
     <div class="map-header">
-      <h1 class="page-title">Nearby Users Map</h1>
-      <p class="page-subtitle">Only users who opted into approximate public map visibility are shown.</p>
+      <h1 class="page-title">Oriental Mindoro Service Map</h1>
+      <p class="page-subtitle">
+        Explore cleaning service requests and multi-municipality service offers across Oriental Mindoro.
+      </p>
     </div>
 
-    <!-- Quick Filters -->
+    <!-- Map Location & Multi-Facet Filter Box -->
     <div class="filter-box">
       <ion-searchbar
         [value]="dataService.searchQuery()"
-        placeholder="Search names or towns..."
+        placeholder="Search posts, services, or municipalities..."
         (ionInput)="onSearchChange($event)"
         class="custom-searchbar"
         debounce="200"
       ></ion-searchbar>
 
-      <div class="chip-row">
+      <div class="filter-selects-row">
+        <div class="select-col">
+          <label class="mini-label">Municipality / City</label>
+          <ion-select
+            [value]="dataService.selectedLocationId()"
+            interface="popover"
+            (ionChange)="onLocationFilterChange($event)"
+            class="map-select"
+          >
+            <ion-select-option value="all">All Locations (15 Areas)</ion-select-option>
+            @for (loc of locations; track loc.id) {
+              <ion-select-option [value]="loc.id">{{ loc.name }}</ion-select-option>
+            }
+          </ion-select>
+        </div>
+
+        <div class="select-col">
+          <label class="mini-label">Cleaning Category</label>
+          <ion-select
+            [value]="dataService.selectedCategory()"
+            interface="popover"
+            (ionChange)="onCategoryChange($event)"
+            class="map-select"
+          >
+            <ion-select-option value="all">All Categories</ion-select-option>
+            <ion-select-option value="General">General cleaning</ion-select-option>
+            <ion-select-option value="Deep">Deep cleaning</ion-select-option>
+            <ion-select-option value="Kitchen">Kitchen cleaning</ion-select-option>
+            <ion-select-option value="Bathroom">Bathroom cleaning</ion-select-option>
+            <ion-select-option value="Laundry">Laundry</ion-select-option>
+            <ion-select-option value="Other">Other</ion-select-option>
+          </ion-select>
+        </div>
+      </div>
+
+      <!-- Location Mode Chips -->
+      <div class="chip-row" style="margin-bottom: 6px;">
         <button
+          type="button"
           class="filter-chip"
-          [class.active]="dataService.selectedTag() === 'all'"
-          (click)="onTagChange('all')"
+          [class.active]="dataService.selectedLocationMode() === 'all'"
+          (click)="onLocationModeChange('all')"
         >
-          All Users
+          All in {{ selectedFilterLocationName }}
         </button>
         <button
+          type="button"
           class="filter-chip"
-          [class.active]="dataService.selectedTag() === 'client'"
-          (click)="onTagChange('client')"
+          [class.active]="dataService.selectedLocationMode() === 'requests-in'"
+          (click)="onLocationModeChange('requests-in')"
         >
-          Clients Only
+          Requests in Area
         </button>
         <button
+          type="button"
           class="filter-chip"
-          [class.active]="dataService.selectedTag() === 'provider'"
-          (click)="onTagChange('provider')"
+          [class.active]="dataService.selectedLocationMode() === 'offers-covering'"
+          (click)="onLocationModeChange('offers-covering')"
         >
-          Providers Only
+          Offers Covering Area
+        </button>
+      </div>
+
+      <!-- Profile Tag Chips & Reset -->
+      <div class="chip-row" style="justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'all'"
+            (click)="onTagChange('all')"
+          >
+            All Tags
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'client'"
+            (click)="onTagChange('client')"
+          >
+            Clients Only
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedTag() === 'provider'"
+            (click)="onTagChange('provider')"
+          >
+            Providers Only
+          </button>
+        </div>
+
+        <button type="button" class="reset-map-btn" (click)="resetMapView()">
+          <ion-icon name="refresh-outline"></ion-icon>
+          Reset Map
         </button>
       </div>
     </div>
 
-    <!-- Interactive Conceptual Map Canvas -->
-    <div class="map-canvas">
-      <!-- Water/Island Styling -->
-      <div class="island-watermark">Oriental Mindoro</div>
-
-      <!-- Center / You Marker -->
-      <div class="map-pin you-pin" style="top: 50%; left: 50%;">
-        <span class="pin-badge">YOU</span>
+    <!-- Map Legend & Deduplicated Summary Bar -->
+    <div class="map-stats-legend">
+      <div class="stat-pill">
+        <span class="dot area-dot"></span>
+        <span><b>{{ dataService.mapAreaSummaries().length }}</b> Active Municipalities ({{ dataService.distinctMappedPostsCount() }} unique posts)</span>
       </div>
-
-      <!-- Pins for Map-Visible Users -->
-      @for (u of dataService.mapVisibleUsers(); track u.id) {
-        @let isSelected = selectedUser()?.id === u.id;
-        @let pinTop = u.id === 'demo' ? 45 : u.id === 'ana' ? 62 : u.id === 'ben' ? 25 : 78;
-        @let pinLeft = u.id === 'demo' ? 48 : u.id === 'ana' ? 68 : u.id === 'ben' ? 32 : 55;
-
-        <button
-          class="map-pin user-pin"
-          [class.selected]="isSelected"
-          [class.provider]="u.tag === 'provider'"
-          [style.top.%]="pinTop"
-          [style.left.%]="pinLeft"
-          (click)="selectPin(u)"
-        >
-          <span class="pin-icon">{{ u.tag === 'client' ? 'C' : 'P' }}</span>
-          <span class="pin-name">{{ u.name.split(' ')[0] }}</span>
-        </button>
-      }
+      <div class="stat-pill">
+        <span class="dot user-dot"></span>
+        <span><b>{{ dataService.mapVisibleUsers().length }}</b> Opt-In User Areas</span>
+      </div>
     </div>
 
-    <!-- Selected Pin Callout (if active) -->
+    <!-- Interactive Leaflet OpenStreetMap Canvas -->
+    <div class="leaflet-wrapper">
+      <div #leafletContainer class="leaflet-map-canvas" id="oriental-mindoro-map"></div>
+    </div>
+
+    <!-- Quick Interactive Municipality Marker Strip (Synced with Map Markers) -->
+    <div class="area-markers-strip">
+      <span class="strip-label">Tap a Municipality Marker to Inspect Area Posts:</span>
+      <div class="strip-chips">
+        @for (area of dataService.mapAreaSummaries(); track area.location.id) {
+          <button
+            type="button"
+            class="area-marker-chip"
+            [class.selected]="selectedAreaId() === area.location.id"
+            (click)="selectArea(area.location.id)"
+          >
+            <ion-icon name="location-outline"></ion-icon>
+            <span>{{ area.location.name }}</span>
+            <span class="chip-count">{{ area.posts.length }}</span>
+          </button>
+        } @empty {
+          <span class="no-areas-text">No municipalities match the active filter criteria.</span>
+        }
+      </div>
+    </div>
+
+    <!-- Location-Details Popup / Bottom Sheet Card (When a Municipality Marker is Tapped) -->
+    @if (selectedAreaSummary(); as areaDetail) {
+      <div class="area-detail-sheet" role="region" aria-label="Selected Municipality Details">
+        <div class="sheet-header">
+          <div class="sheet-title-group">
+            <div class="sheet-badge-row">
+              <span class="area-type-tag">
+                {{ areaDetail.location.classification }} · District {{ areaDetail.location.district }}
+              </span>
+              <span class="area-counts-tag">
+                {{ areaDetail.requestCount }} Request(s) · {{ areaDetail.offerCount }} Offer(s)
+              </span>
+            </div>
+            <h2 class="sheet-muni-name">{{ areaDetail.location.name }}, Oriental Mindoro</h2>
+            <p class="sheet-muni-sub">
+              Showing {{ areaDetail.posts.length }} published cleaning post(s) associated with {{ areaDetail.location.name }}.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="close-sheet-btn"
+            (click)="closeAreaDetails()"
+            aria-label="Close municipality details"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="sheet-posts-list">
+          @for (post of areaDetail.posts; track post.id) {
+            <div class="sheet-post-card">
+              <div class="sheet-post-top">
+                <ion-badge [color]="post.type === 'offer' ? 'primary' : 'tertiary'">
+                  {{ post.type === 'offer' ? 'Service Offer' : 'Service Request' }}
+                </ion-badge>
+                <span class="sheet-post-status">{{ post.status }}</span>
+              </div>
+
+              <h3 class="sheet-post-title">{{ post.title }}</h3>
+
+              <div class="sheet-post-meta">
+                <span><b>Category:</b> {{ post.category }} cleaning</span>
+                <span><b>{{ post.type === 'request' ? 'Budget' : 'Rate' }}:</b> {{ getPostAmountLabel(post) }}</span>
+              </div>
+
+              <div class="sheet-post-coverage">
+                <ion-icon name="location-outline"></ion-icon>
+                <span>
+                  <b>{{ post.type === 'request' ? 'Needed in:' : 'Covers:' }}</b>
+                  {{ getPostCoverageText(post) }}
+                </span>
+              </div>
+
+              <div class="sheet-post-actions">
+                <ion-button
+                  size="small"
+                  color="primary"
+                  [routerLink]="['/post', post.id]"
+                >
+                  View Post Details ›
+                </ion-button>
+
+                <ion-button
+                  size="small"
+                  fill="outline"
+                  color="secondary"
+                  [routerLink]="['/user-profile', post.authorId]"
+                >
+                  <ion-icon name="person-outline" slot="start"></ion-icon>
+                  {{ post.authorName }}
+                </ion-button>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <p>No active cleaning posts in {{ areaDetail.location.name }} match the current filters.</p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Selected Consenting User Callout (if tapped) -->
     @if (selectedUser(); as user) {
       <div class="pin-callout-card">
         <div class="callout-top">
           <div class="callout-avatar">{{ getInitial(user.name) }}</div>
           <div class="callout-info">
             <span class="callout-name">{{ user.name }}</span>
-            <span class="callout-meta">{{ getUserTagLabel(user.tag) }} · {{ user.approxLocation?.label }}</span>
+            <span class="callout-meta">
+              {{ getUserTagLabel(user.tag) }} · Opt-In Approximate Area: {{ user.approxLocation?.label }}
+            </span>
           </div>
-          <button class="close-callout" (click)="selectedUser.set(null)">✕</button>
+          <button type="button" class="close-callout" (click)="selectedUser.set(null)">✕</button>
         </div>
         <p class="callout-bio">{{ user.bio }}</p>
         <ion-button size="small" expand="block" color="primary" [routerLink]="['/user-profile', user.id]">
@@ -88,14 +256,17 @@
       </div>
     }
 
-    <!-- Conceptual Notice -->
-    <p class="map-notice">
-      Notice: Conceptual approximate map. No precise residential coordinates, real GPS, or continuous tracking are used.
-    </p>
+    <!-- Privacy & Attribution Notice -->
+    <div class="map-privacy-banner">
+      <ion-icon name="shield-checkmark-outline"></ion-icon>
+      <span>
+        <b>Privacy Guarantee:</b> Area markers represent municipal reference centers for post coverage discovery—never a user's personal home address. Personal profile markers appear only for users who explicitly opted in, without exposing exact GPS coordinates.
+      </span>
+    </div>
 
-    <!-- Map-Visible Users List -->
+    <!-- Opt-In Map-Visible Users List -->
     <div class="results-header">
-      <h2 class="section-title">Map-Visible Profiles ({{ dataService.mapVisibleUsers().length }})</h2>
+      <h2 class="section-title">Opt-In Map-Visible Profiles ({{ dataService.mapVisibleUsers().length }})</h2>
     </div>
 
     <div class="users-list">
@@ -122,7 +293,7 @@
         </div>
       } @empty {
         <div class="empty-state">
-          <p>No map-visible users match your filters.</p>
+          <p>No opt-in map-visible users match your current filters.</p>
         </div>
       }
     </div>

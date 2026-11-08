@@ -24,15 +24,21 @@ import {
   personOutline,
   eyeOffOutline,
   eyeOutline,
-  shieldAlertOutline,
+  shieldOutline,
   timeOutline,
   alertCircleOutline,
   checkmarkCircleOutline,
   openOutline,
+  locationOutline,
 } from 'ionicons/icons';
 import { PublicDataService } from '../../../core/services/public-data.service';
 import { CleaningPost } from '../../../shared/models/post.model';
 import { ReportItem } from '../../../shared/models/report.model';
+import {
+  getCoverageLocationNames,
+  getLocationName,
+  getPostLocationSummary,
+} from '../../../shared/models/location.model';
 
 @Component({
   selector: 'app-admin-post-review',
@@ -90,17 +96,29 @@ export class AdminPostReviewPage {
       personOutline,
       eyeOffOutline,
       eyeOutline,
-      shieldAlertOutline,
+      shieldOutline,
       timeOutline,
       alertCircleOutline,
       checkmarkCircleOutline,
       openOutline,
+      locationOutline,
     });
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.postId.set(id);
     }
+  }
+
+  getLocationSummary(p: CleaningPost): string {
+    return getPostLocationSummary(p);
+  }
+
+  getLocationChips(p: CleaningPost): string[] {
+    if (p.type === 'request') {
+      return p.targetLocationId ? [getLocationName(p.targetLocationId)] : [];
+    }
+    return getCoverageLocationNames(p.coverageAreaIds);
   }
 
   openAction(action: 'hide' | 'restore'): void {

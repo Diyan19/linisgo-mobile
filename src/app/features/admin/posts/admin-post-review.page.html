@@ -48,6 +48,31 @@
             <span class="meta-date">Posted: {{ p.createdAt }}</span>
           </div>
 
+          <!-- Structured Location Coverage Audit Block -->
+          <div style="background: #f2f7fa; border: 1px solid #cce0eb; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 800; color: #1e3342; margin-bottom: 6px;">
+              <ion-icon name="location-outline" style="color: #2b4354;"></ion-icon>
+              <span>{{ p.type === 'request' ? 'Target Municipality (Service Request)' : 'Service Coverage Areas (Service Offer)' }}</span>
+            </div>
+            @let chips = getLocationChips(p);
+            @if (chips.length > 0) {
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                @for (chipName of chips; track chipName) {
+                  <span style="background: #2b4354; color: #ffffff; border-radius: 999px; padding: 3px 10px; font-size: 0.76rem; font-weight: 700;">
+                    {{ chipName }}
+                  </span>
+                }
+              </div>
+            } @else {
+              <span style="font-size: 0.8rem; color: #64748b; font-style: italic;">No structured location specified</span>
+            }
+            @if (p.optionalPublicAreaDescription) {
+              <div style="margin-top: 6px; font-size: 0.78rem; color: #3f525f;">
+                <b>Optional Public Area Description:</b> {{ p.optionalPublicAreaDescription }}
+              </div>
+            }
+          </div>
+
           <div class="desc-box">
             <label class="box-label">Post Description</label>
             <p class="desc-text">{{ p.description }}</p>

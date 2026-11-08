@@ -9,7 +9,7 @@
 
 <ion-content [fullscreen]="true" class="ion-padding page-content">
   <div class="content-wrapper">
-    @if (user) {
+    @if (user && user.state === 'active') {
       <!-- Profile Header Card -->
       <div class="profile-card">
         <div class="profile-top-row">
@@ -22,16 +22,36 @@
                 {{ user.available ? 'Available' : 'Unavailable' }}
               </ion-badge>
             </div>
-            @if (user.approxLocation?.label) {
+            @if (user.mapConsent && user.approxLocation?.label) {
               <div class="loc-text">
                 <ion-icon name="location-outline"></ion-icon>
-                <span>{{ user.approxLocation?.label }}</span>
+                <span>Opted-in Approximate Area: {{ user.approxLocation?.label }}</span>
+              </div>
+            } @else {
+              <div class="loc-text" style="color: #64748b;">
+                <ion-icon name="shield-checkmark-outline"></ion-icon>
+                <span>Personal map location hidden by user privacy setting</span>
               </div>
             }
           </div>
         </div>
 
         <p class="user-bio-full">{{ user.bio }}</p>
+
+        @if (activeServiceCoverageAreas.length > 0) {
+          <div style="background: #f2f7f9; border: 1px solid #d5e2e8; border-radius: 10px; padding: 10px 12px; margin-top: 10px;">
+            <span style="display: block; font-size: 0.75rem; font-weight: 800; color: #2b4354; margin-bottom: 6px;">
+              Published Post Coverage / Request Areas:
+            </span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              @for (areaName of activeServiceCoverageAreas; track areaName) {
+                <span style="background: #ffffff; border: 1px solid #b8cad4; color: #1e3342; border-radius: 999px; padding: 2px 10px; font-size: 0.74rem; font-weight: 700;">
+                  {{ areaName }}
+                </span>
+              }
+            </div>
+          </div>
+        }
 
         <div class="divider"></div>
 
@@ -85,7 +105,7 @@
     } @else {
       <div class="not-found-card">
         <h2>User Profile Not Found</h2>
-        <p>The profile you requested does not exist or has been removed.</p>
+        <p>The profile you requested does not exist or is currently unavailable.</p>
         <ion-button routerLink="/tabs/feed" color="primary">Return to Community Feed</ion-button>
       </div>
     }

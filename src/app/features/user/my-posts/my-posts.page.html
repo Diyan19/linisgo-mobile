@@ -79,7 +79,21 @@
           <h2 class="post-title">{{ post.title }}</h2>
           <p class="post-meta">{{ post.category }} cleaning · {{ getAmountText(post) }}</p>
 
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #2b4354; background: #f2f7f9; border: 1px solid #d5e2e8; border-radius: 8px; padding: 6px 10px; margin-bottom: 8px;">
+            <ion-icon name="location-outline" style="flex-shrink: 0;"></ion-icon>
+            <span>
+              <b>{{ post.type === 'request' ? 'Target Area:' : 'Service Coverage:' }}</b>
+              {{ getLocationText(post) }}
+            </span>
+          </div>
+
           <p class="post-desc-snippet">{{ post.description }}</p>
+
+          @if (post.moderated) {
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 0.78rem; color: #991b1b;">
+              <b>Moderated by Admin:</b> "{{ post.moderationReason || 'Policy violation' }}"
+            </div>
+          }
 
           <div class="card-actions">
             <button class="action-btn" (click)="editPost(post)">
@@ -87,10 +101,16 @@
               Edit
             </button>
 
+            @if (post.moderated) {
+              <a class="action-btn warn-btn" [routerLink]="['/user/appeal']" [queryParams]="{ type: 'post', id: post.id }" style="text-decoration: none;">
+                Appeal Post
+              </a>
+            }
+
             @if (post.status !== 'archived') {
               <button class="action-btn" (click)="togglePostStatus(post)">
                 <ion-icon name="checkmark-circle-outline"></ion-icon>
-                {{ post.status === 'open' || post.status === 'active' ? 'Close' : 'Reopen' }}
+                {{ post.status === 'open' || post.status === 'active' ? 'Close' : post.status === 'draft' ? 'Publish' : 'Reopen' }}
               </button>
 
               <button class="action-btn warn-btn" (click)="archivePost(post)">

@@ -40,3 +40,86 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
+
+/* Ensure ion-tabs content starts cleanly below the fixed 56px layout header */
+app-public-tabs ion-tabs,
+app-user-tabs ion-tabs,
+app-admin-tabs ion-tabs {
+  top: 56px !important;
+  height: calc(100% - 56px) !important;
+}
+
+/* Custom Leaflet Map Markers for LinisGo Finder */
+.linisgo-div-icon {
+  background: transparent;
+  border: 0;
+}
+
+.linisgo-area-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #1e3a4c;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.32);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+
+  &:hover,
+  &.selected {
+    background: #0f766e;
+    transform: translate(-50%, -50%) scale(1.08);
+    z-index: 900 !important;
+  }
+
+  .area-count {
+    background: #ffffff;
+    color: #1e3a4c;
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 0.68rem;
+    font-weight: 900;
+  }
+}
+
+.linisgo-user-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  color: #1e293b;
+  border: 2px solid #0284c7;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.24);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+
+  &.provider {
+    border-color: #2b4354;
+  }
+
+  &.selected {
+    background: #e0f2fe;
+    border-color: #0369a1;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.35);
+  }
+
+  .user-role-tag {
+    background: #0284c7;
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 0 4px;
+    font-size: 0.62rem;
+  }
+}

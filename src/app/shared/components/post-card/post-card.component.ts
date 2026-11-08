@@ -15,8 +15,13 @@ import {
   bookmarkOutline,
   bookmark,
   flagOutline,
+  locationOutline,
 } from 'ionicons/icons';
 import { CleaningPost } from '../../models/post.model';
+import {
+  getCoverageLocationNames,
+  getLocationName,
+} from '../../models/location.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { PublicDataService } from '../../../core/services/public-data.service';
 
@@ -50,6 +55,7 @@ export class PostCardComponent {
       bookmarkOutline,
       bookmark,
       flagOutline,
+      locationOutline,
     });
   }
 
@@ -72,6 +78,18 @@ export class PostCardComponent {
   get formattedAmount(): string {
     const amt = this.post().amount;
     return amt ? `₱${amt.toLocaleString()}` : 'Negotiable';
+  }
+
+  get locationTags(): string[] {
+    const p = this.post();
+    if (p.type === 'request') {
+      return p.targetLocationId ? [getLocationName(p.targetLocationId)] : [];
+    }
+    return getCoverageLocationNames(p.coverageAreaIds);
+  }
+
+  get locationPrefixLabel(): string {
+    return this.post().type === 'request' ? 'Needed in:' : 'Covers:';
   }
 
   get isSaved(): boolean {

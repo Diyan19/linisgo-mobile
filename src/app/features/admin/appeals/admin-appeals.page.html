@@ -46,7 +46,7 @@
             <div class="appeal-top-row">
               <span class="target-type" [class.type-account]="appeal.targetType === 'account'">
                 <ion-icon [name]="appeal.targetType === 'account' ? 'person-outline' : 'documents-outline'"></ion-icon>
-                {{ appeal.targetType | uppercase }}: #{{ appeal.targetId }}
+                {{ appeal.targetType.toUpperCase() }}: #{{ appeal.targetId }}
               </span>
               <span class="status-pill" [class.status-pending]="appeal.status === 'Pending'"
                 [class.status-approved]="appeal.status === 'Approved'"

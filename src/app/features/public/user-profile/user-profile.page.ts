@@ -1,5 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   IonHeader,
   IonToolbar,
@@ -20,19 +20,17 @@ import {
   checkmarkCircleOutline,
   closeCircleOutline,
   locationOutline,
+  bookmarkOutline,
+  bookmark,
+  flagOutline,
+  shieldCheckmarkOutline,
 } from 'ionicons/icons';
 import { PublicDataService } from '../../../core/services/public-data.service';
 import { PostCardComponent } from '../../../shared/components/post-card/post-card.component';
 import { CleaningPost } from '../../../shared/models/post.model';
 import { UserProfile } from '../../../shared/models/user.model';
-
 import { AuthService } from '../../../core/services/auth.service';
-import { Router } from '@angular/router';
-import {
-  bookmarkOutline,
-  bookmark,
-  flagOutline,
-} from 'ionicons/icons';
+import { getCoverageLocationNames, getLocationName } from '../../../shared/models/location.model';
 
 @Component({
   selector: 'app-public-user-profile',
@@ -74,6 +72,7 @@ export class UserProfilePage implements OnInit {
       bookmarkOutline,
       bookmark,
       flagOutline,
+      shieldCheckmarkOutline,
     });
   }
 
@@ -81,7 +80,9 @@ export class UserProfilePage implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.user = this.dataService.getUserById(id);
-      this.userPosts = this.dataService.getUserPosts(id);
+      this.userPosts = this.dataService
+        .getUserPosts(id)
+        .filter(p => !p.moderated && p.status !== 'archived' && p.status !== 'draft');
     }
   }
 
@@ -91,6 +92,20 @@ export class UserProfilePage implements OnInit {
 
   get tagLabel(): string {
     return this.user?.tag === 'client' ? 'Client' : 'Service Provider';
+  }
+
+  get activeServiceCoverageAreas(): string[] {
+    const names = new Set<string>();
+    for (const post of this.userPosts) {
+      if (post.type === 'offer') {
+        for (const n of getCoverageLocationNames(post.coverageAreaIds)) {
+          names.add(n);
+        }
+      } else if (post.type === 'request' && post.targetLocationId) {
+        names.add(getLocationName(post.targetLocationId));
+      }
+    }
+    return Array.from(names);
   }
 
   get isSavedUser(): boolean {

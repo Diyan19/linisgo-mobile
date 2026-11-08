@@ -71,7 +71,9 @@ export class AdminAppealDetailPage {
 
   readonly targetUser = computed<UserProfile | undefined>(() => {
     const a = this.appeal();
-    return a && a.targetType === 'account' ? this.dataService.getUserById(a.targetId) : undefined;
+    if (!a || a.targetType !== 'account') return undefined;
+    const uid = a.targetId === 'my-account' ? a.appellantId : a.targetId;
+    return this.dataService.getUserById(uid);
   });
 
   readonly targetPost = computed<CleaningPost | undefined>(() => {

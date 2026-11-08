@@ -18,7 +18,7 @@ import { addIcons } from 'ionicons';
 import {
   peopleOutline,
   documentsOutline,
-  shieldAlertOutline,
+  shieldOutline,
   ribbonOutline,
   banOutline,
   mapOutline,
@@ -60,7 +60,7 @@ export class AdminDashboardPage {
     addIcons({
       peopleOutline,
       documentsOutline,
-      shieldAlertOutline,
+      shieldOutline,
       ribbonOutline,
       banOutline,
       mapOutline,

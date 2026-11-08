@@ -50,6 +50,259 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
 }
 
+.location-card {
+  border-color: #b9cdd9;
+  background: #fbfdfe;
+}
+
+.location-card-head {
+  margin-bottom: 12px;
+
+  .loc-title-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+
+    .loc-head-icon {
+      font-size: 1.4rem;
+      color: #2b4354;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .loc-section-title {
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: #1f313d;
+      margin: 0 0 3px 0;
+    }
+
+    .loc-section-sub {
+      font-size: 0.78rem;
+      color: #5b6d78;
+      margin: 0;
+      line-height: 1.35;
+    }
+  }
+}
+
+.selected-request-loc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  background: #e1eef4;
+  border: 1px solid #526f83;
+  color: #1d3240;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+
+  ion-icon {
+    color: #2b4354;
+  }
+}
+
+.coverage-controls-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  .coverage-count-badge {
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #2b4354;
+    background: #e6eef2;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  .coverage-quick-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .quick-loc-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5da;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #2b4354;
+    cursor: pointer;
+
+    &:hover {
+      background: #edf3f6;
+    }
+
+    &.clear-all-btn {
+      color: #991b1b;
+      border-color: #f3c2c2;
+      background: #fef2f2;
+    }
+  }
+}
+
+.selected-chips-box {
+  background: #f0f6f9;
+  border: 1px solid #c8dbe4;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 12px;
+
+  .selected-chips-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #465a67;
+    margin-bottom: 6px;
+  }
+
+  .selected-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+.removable-loc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #2b4354;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+
+  ion-icon {
+    font-size: 0.85rem;
+  }
+}
+
+.chip-remove-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 0;
+  color: inherit;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.35);
+  }
+}
+
+.empty-coverage-hint {
+  background: #f8fafb;
+  border: 1px dashed #cbd5da;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.76rem;
+  color: #657580;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.municipality-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+
+  @media (min-width: 420px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.muni-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5da;
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #384854;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+
+  .muni-check {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #eef2f5;
+    color: #526f83;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+
+  .muni-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &.selected {
+    background: #dfe9ed;
+    border-color: #2b4354;
+    color: #1b2d39;
+    font-weight: 800;
+
+    .muni-check {
+      background: #2b4354;
+      color: #ffffff;
+    }
+  }
+}
+
+.optional-location-box {
+  border-top: 1px solid #e2eaee;
+  padding-top: 12px;
+  margin-top: 6px;
+}
+
+.privacy-note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: #f0f7f4;
+  border: 1px solid #cce3d8;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  color: #26543d;
+  line-height: 1.35;
+
+  ion-icon {
+    font-size: 1rem;
+    color: #1f7a4c;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+}
+
 .field-label {
   display: block;
   font-size: 0.82rem;
@@ -158,8 +411,9 @@
   background: #fbeeee;
   border: 1px solid #e7c2c2;
   border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 0.8rem;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: #8c3b3b;
   margin-bottom: 12px;
 }

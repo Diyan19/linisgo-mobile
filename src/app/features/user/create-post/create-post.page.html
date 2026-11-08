@@ -9,7 +9,7 @@
 
     @if (isSuspended()) {
       <div class="suspension-warning-box">
-        <ion-icon name="closeOutline"></ion-icon>
+        <ion-icon name="close-outline"></ion-icon>
         <div>
           <b>Account Suspended:</b> Creating new posts is restricted. You may submit a formal appeal from your profile.
         </div>
@@ -21,6 +21,7 @@
       <label class="field-label">Post Type *</label>
       <div class="type-chips-row">
         <button
+          type="button"
           class="type-chip"
           [class.active]="postType === 'request'"
           (click)="setType('request')"
@@ -28,6 +29,7 @@
           Looking for Services (Request)
         </button>
         <button
+          type="button"
           class="type-chip"
           [class.active]="postType === 'offer'"
           (click)="setType('offer')"
@@ -36,11 +38,167 @@
         </button>
       </div>
       <span class="field-note">
-        {{ postType === 'request' ? 'Publish a service request stating what needs cleaning and your budget.' : 'Publish a service offer stating what services you provide and your rate.' }}
+        {{ postType === 'request' ? 'Publish a service request stating what needs cleaning, where it is needed, and your budget.' : 'Publish a service offer stating what services you provide, your municipal coverage areas, and your rate.' }}
       </span>
     </div>
 
-    <!-- Form Inputs -->
+    <!-- Dynamic Location Coverage Card -->
+    <div class="field-card location-card">
+      <div class="location-card-head">
+        <div class="loc-title-wrap">
+          <ion-icon name="location-outline" class="loc-head-icon"></ion-icon>
+          <div>
+            @if (postType === 'request') {
+              <h2 class="loc-section-title">Where do you need cleaning assistance? *</h2>
+              <p class="loc-section-sub">Select one city or municipality in Oriental Mindoro.</p>
+            } @else {
+              <h2 class="loc-section-title">Select Service Coverage Areas *</h2>
+              <p class="loc-section-sub">Select one or multiple Oriental Mindoro cities/municipalities you can serve.</p>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (postType === 'request') {
+        <!-- Service Request: Single Municipality Selection -->
+        <div class="form-group">
+          <label class="field-label">Target City / Municipality (Oriental Mindoro) *</label>
+          <ion-select
+            [value]="targetLocationId"
+            interface="popover"
+            placeholder="Select city or municipality..."
+            (ionChange)="onTargetLocationChange($event.detail.value)"
+            class="custom-select location-select"
+          >
+            @for (loc of locations; track loc.id) {
+              <ion-select-option [value]="loc.id">
+                {{ loc.name }} ({{ loc.classification }} · District {{ loc.district }})
+              </ion-select-option>
+            }
+          </ion-select>
+
+          @if (targetLocationId) {
+            <div class="selected-request-loc-chip">
+              <ion-icon name="location-outline"></ion-icon>
+              <span>Selected Area: <b>{{ getLocationLabel(targetLocationId) }}</b></span>
+              <button
+                type="button"
+                class="chip-remove-btn"
+                (click)="onTargetLocationChange(null)"
+                aria-label="Clear selected municipality"
+              >
+                ✕
+              </button>
+            </div>
+          }
+        </div>
+      } @else {
+        <!-- Service Offer: Multi-Municipality Coverage Selector & Removable Chips -->
+        <div class="coverage-controls-top">
+          <span class="coverage-count-badge">
+            {{ coverageAreaIds.length }} of {{ locations.length }} areas selected
+          </span>
+          <div class="coverage-quick-btns">
+            <button type="button" class="quick-loc-btn" (click)="selectAllOrientalMindoro()">
+              Select All Oriental Mindoro
+            </button>
+            <button type="button" class="quick-loc-btn" (click)="selectAllDistrict(1)">
+              + District 1
+            </button>
+            <button type="button" class="quick-loc-btn" (click)="selectAllDistrict(2)">
+              + District 2
+            </button>
+            @if (coverageAreaIds.length > 0) {
+              <button type="button" class="quick-loc-btn clear-all-btn" (click)="clearCoverageSelections()">
+                Clear Selection
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Selected Removable Chips -->
+        @if (coverageAreaIds.length > 0) {
+          <div class="selected-chips-box" aria-label="Selected coverage areas">
+            <span class="selected-chips-label">Selected Coverage Areas (tap ✕ to remove):</span>
+            <div class="selected-chips-list">
+              @for (locId of coverageAreaIds; track locId) {
+                <span class="removable-loc-chip">
+                  <ion-icon name="location-outline"></ion-icon>
+                  <span class="chip-text">{{ getLocationLabel(locId) }}</span>
+                  <button
+                    type="button"
+                    class="chip-remove-btn"
+                    (click)="removeCoverageArea(locId)"
+                    [attr.aria-label]="'Remove ' + getLocationLabel(locId)"
+                  >
+                    ✕
+                  </button>
+                </span>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="empty-coverage-hint">
+            No coverage areas selected yet. Tap one or more municipalities below (required before publishing; optional for drafts).
+          </div>
+        }
+
+        <!-- All 15 Oriental Mindoro Municipalities Grid -->
+        <div class="municipality-grid">
+          @for (loc of locations; track loc.id) {
+            <button
+              type="button"
+              class="muni-option-btn"
+              [class.selected]="isCoverageSelected(loc.id)"
+              (click)="toggleCoverageArea(loc.id)"
+            >
+              <span class="muni-check">{{ isCoverageSelected(loc.id) ? '✓' : '+' }}</span>
+              <span class="muni-name">{{ loc.name }}</span>
+            </button>
+          }
+        </div>
+      }
+
+      <!-- Optional Location Details (Verified Barangay + Public Area Note) -->
+      <div class="optional-location-box">
+        @if (availableBarangays.length > 0) {
+          <div class="form-group">
+            <label class="field-label">Verified Barangay (Optional)</label>
+            <ion-select
+              [value]="selectedBarangay"
+              interface="popover"
+              placeholder="Optionally select a barangay..."
+              (ionChange)="onBarangaySelect($event.detail.value)"
+              class="custom-select"
+            >
+              <ion-select-option value="">None / General Municipality</ion-select-option>
+              @for (brgy of availableBarangays; track brgy) {
+                <ion-select-option [value]="brgy">Brgy. {{ brgy }}</ion-select-option>
+              }
+            </ion-select>
+          </div>
+        }
+
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label class="field-label">Optional Additional Location Description</label>
+          <ion-input
+            [value]="optionalPublicAreaDescription"
+            placeholder="e.g., Near Town Plaza, Poblacion area, or coastal barangays"
+            class="custom-input"
+            (ionInput)="optionalPublicAreaDescription = $event.detail.value || ''"
+          ></ion-input>
+        </div>
+
+        <div class="privacy-note-row">
+          <ion-icon name="shield-checkmark-outline"></ion-icon>
+          <span>
+            <b>Privacy Protection:</b> Never enter your exact house number or private residential address. Only municipality/barangay coverage is shown publicly.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Post Details Inputs -->
     <div class="field-card">
       <div class="form-group">
         <label class="field-label">Post Title *</label>
@@ -101,17 +259,17 @@
       </div>
 
       @if (errorMessage) {
-        <div class="error-box">{{ errorMessage }}</div>
+        <div class="error-box" role="alert">{{ errorMessage }}</div>
       }
 
       <div class="actions-row">
         <ion-button expand="block" color="primary" class="main-action-btn" (click)="onPublish()">
-          {{ editId ? 'Save Changes' : 'Publish Instantly' }}
+          {{ editId && editingExistingStatus !== 'draft' ? 'Save Changes' : 'Publish Instantly' }}
         </ion-button>
 
-        @if (!editId) {
+        @if (!editId || editingExistingStatus === 'draft') {
           <ion-button expand="block" fill="outline" color="secondary" (click)="onSaveDraft()">
-            Save Draft
+            {{ editId ? 'Update Draft (No Location Required)' : 'Save Draft' }}
           </ion-button>
         }
 

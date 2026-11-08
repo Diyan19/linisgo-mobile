@@ -40,7 +40,7 @@
             <div class="report-top-row">
               <span class="target-type" [class.user-target]="report.targetType === 'user'">
                 <ion-icon [name]="report.targetType === 'user' ? 'person-outline' : 'documents-outline'"></ion-icon>
-                {{ report.targetType | uppercase }}: #{{ report.targetId }}
+                {{ report.targetType.toUpperCase() }}: #{{ report.targetId }}
               </span>
               <span class="status-pill" [class.status-pending]="report.status === 'Pending'"
                 [class.status-review]="report.status === 'Under Review'"
@@ -68,7 +68,7 @@
         </ion-card>
       } @empty {
         <div class="empty-state">
-          <ion-icon name="shield-alert-outline"></ion-icon>
+          <ion-icon name="shield-outline"></ion-icon>
           <h3>No Reports in this Queue</h3>
           <p>No user reports match your current filter settings.</p>
         </div>

@@ -107,6 +107,61 @@ ion-card-content {
   padding: 4px 14px 14px 14px;
 }
 
+.location-coverage-row {
+  background: #f3f7f9;
+  border: 1px solid #d5e2e8;
+  border-radius: 8px;
+  padding: 6px 9px;
+  margin-bottom: 10px;
+
+  .loc-header-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    font-size: 0.76rem;
+
+    ion-icon {
+      color: #2b4354;
+      font-size: 0.92rem;
+      flex-shrink: 0;
+    }
+
+    .loc-prefix {
+      font-weight: 700;
+      color: #364b59;
+    }
+
+    .loc-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .loc-pill {
+      background: #ffffff;
+      border: 1px solid #b8cad4;
+      color: #1e3342;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .loc-unspecified {
+      color: #7b8891;
+      font-style: italic;
+    }
+  }
+
+  .loc-optional-note {
+    font-size: 0.72rem;
+    color: #556773;
+    margin-top: 3px;
+    padding-left: 18px;
+  }
+}
+
 .desc-snippet {
   font-size: 0.88rem;
   color: #495761;

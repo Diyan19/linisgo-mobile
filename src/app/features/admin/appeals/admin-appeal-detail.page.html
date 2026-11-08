@@ -29,7 +29,7 @@
 
           <div class="meta-row">
             <span>Appellant ID: <b>{{ a.appellantId }}</b></span>
-            <span>Target: <b>{{ a.targetType | uppercase }} #{{ a.targetId }}</b></span>
+            <span>Target: <b>{{ a.targetType.toUpperCase() }} #{{ a.targetId }}</b></span>
             <span>Date: <b>{{ a.createdAt }}</b></span>
           </div>
 
@@ -112,7 +112,7 @@
                 </ion-button>
               } @else {
                 <div class="resolved-notice">
-                  This appeal has already been adjudicated as <b>{{ a.status | uppercase }}</b>.
+                  This appeal has already been adjudicated as <b>{{ a.status.toUpperCase() }}</b>.
                 </div>
               }
             </div>

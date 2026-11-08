@@ -46,7 +46,7 @@
       <!-- Reported Target Context Section -->
       <div class="target-section">
         <h3 class="section-title">
-          Reported Subject ({{ r.targetType | uppercase }})
+          Reported Subject ({{ r.targetType.toUpperCase() }})
         </h3>
 
         @if (r.targetType === 'user') {

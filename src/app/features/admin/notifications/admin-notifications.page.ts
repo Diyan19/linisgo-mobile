@@ -20,7 +20,7 @@ import {
   checkmarkOutline,
   ellipseOutline,
   timeOutline,
-  shieldAlertOutline,
+  shieldOutline,
 } from 'ionicons/icons';
 import { PublicDataService } from '../../../core/services/public-data.service';
 
@@ -54,7 +54,7 @@ export class AdminNotificationsPage {
       checkmarkOutline,
       ellipseOutline,
       timeOutline,
-      shieldAlertOutline,
+      shieldOutline,
     });
   }
 

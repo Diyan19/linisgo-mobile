@@ -3,6 +3,14 @@ import { CleaningPost, PostCategory, PostStatus, PostType } from '../../shared/m
 import { UserProfile, UserProfileTag, SuspensionType, UserAccountState } from '../../shared/models/user.model';
 import { ReportItem, AppealItem, ReportReason, ReportStatus, AppealStatus } from '../../shared/models/report.model';
 import { AuditLog, AuditActionType } from '../../shared/models/audit.model';
+import {
+  ORIENTAL_MINDORO_LOCATIONS,
+  OrientalMindoroLocation,
+  LocationFilterMode,
+  doesPostMatchLocationFilter,
+  getPostLocationSummary,
+  isValidLocationId,
+} from '../../shared/models/location.model';
 
 export interface InAppNotification {
   id: string;
@@ -13,11 +21,20 @@ export interface InAppNotification {
   createdAt: string;
 }
 
+export interface MapAreaSummary {
+  location: OrientalMindoroLocation;
+  posts: CleaningPost[];
+  requestCount: number;
+  offerCount: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class PublicDataService {
   private readonly STORAGE_DATA_KEY = 'linisgo_data_v3';
+
+  readonly locations = ORIENTAL_MINDORO_LOCATIONS;
 
   // State Signals
   readonly usersSignal = signal<UserProfile[]>([]);
@@ -35,6 +52,10 @@ export class PublicDataService {
   readonly selectedTag = signal<'all' | UserProfileTag>('all');
   readonly selectedType = signal<'all' | PostType>('all');
   readonly selectedCategory = signal<'all' | PostCategory>('all');
+  readonly selectedLocationId = signal<string>('all');
+  readonly selectedLocationMode = signal<LocationFilterMode>('all');
+  readonly selectedAvailability = signal<'all' | 'available'>('all');
+  readonly maxPriceFilter = signal<number | null>(null);
   readonly selectedSort = signal<'newest' | 'price-asc'>('newest');
 
   // Currently logged in demo user
@@ -51,25 +72,47 @@ export class PublicDataService {
     );
   });
 
-  // Filtered posts based on active query and chips
+  // Filtered posts based on active query, location, and chips
   readonly filteredPosts = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     const tag = this.selectedTag();
     const type = this.selectedType();
     const cat = this.selectedCategory();
+    const locId = this.selectedLocationId();
+    const locMode = this.selectedLocationMode();
+    const avail = this.selectedAvailability();
+    const maxPrice = this.maxPriceFilter();
     const sort = this.selectedSort();
+
+    const usersMap = new Map(this.usersSignal().map(u => [u.id, u]));
 
     return this.publicPosts()
       .filter(post => {
         if (type !== 'all' && post.type !== type) return false;
         if (cat !== 'all' && post.category !== cat) return false;
         if (tag !== 'all' && post.authorTag !== tag) return false;
+
+        if (!doesPostMatchLocationFilter(post, locId, locMode)) {
+          return false;
+        }
+
+        if (avail === 'available') {
+          const author = usersMap.get(post.authorId);
+          if (!author || !author.available) return false;
+        }
+
+        if (maxPrice !== null && maxPrice > 0) {
+          if (post.amount == null || post.amount > maxPrice) return false;
+        }
+
         if (query) {
           const matchTitle = post.title.toLowerCase().includes(query);
           const matchDesc = post.description.toLowerCase().includes(query);
           const matchCat = post.category.toLowerCase().includes(query);
           const matchAuthor = post.authorName.toLowerCase().includes(query);
-          if (!matchTitle && !matchDesc && !matchCat && !matchAuthor) return false;
+          const locSummary = getPostLocationSummary(post).toLowerCase();
+          const matchLoc = locSummary.includes(query);
+          if (!matchTitle && !matchDesc && !matchCat && !matchAuthor && !matchLoc) return false;
         }
         return true;
       })
@@ -85,11 +128,26 @@ export class PublicDataService {
   readonly filteredUsers = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     const tag = this.selectedTag();
+    const locId = this.selectedLocationId();
+    const avail = this.selectedAvailability();
+    const locObj = locId !== 'all' ? this.locations.find(l => l.id === locId) : undefined;
 
     return this.usersSignal()
       .filter(u => u.state === 'active')
       .filter(user => {
         if (tag !== 'all' && user.tag !== tag) return false;
+        if (avail === 'available' && !user.available) return false;
+        if (locObj) {
+          const userLocLabel = (user.approxLocation?.label || '').toLowerCase();
+          const hasPostInLoc = this.publicPosts().some(
+            p =>
+              p.authorId === user.id &&
+              doesPostMatchLocationFilter(p, locObj.id, this.selectedLocationMode())
+          );
+          if (!userLocLabel.includes(locObj.name.toLowerCase()) && !hasPostInLoc) {
+            return false;
+          }
+        }
         if (query) {
           const matchName = user.name.toLowerCase().includes(query);
           const matchBio = user.bio.toLowerCase().includes(query);
@@ -103,6 +161,38 @@ export class PublicDataService {
   // Map-visible users (active + mapConsent + location)
   readonly mapVisibleUsers = computed(() => {
     return this.filteredUsers().filter(u => u.mapConsent && u.approxLocation);
+  });
+
+  // Area-based post discovery summaries across Oriental Mindoro municipalities
+  readonly mapAreaSummaries = computed<MapAreaSummary[]>(() => {
+    const posts = this.filteredPosts();
+    return this.locations
+      .map(location => {
+        const areaPosts = posts.filter(post =>
+          doesPostMatchLocationFilter(post, location.id, 'all')
+        );
+        const requestCount = areaPosts.filter(p => p.type === 'request').length;
+        const offerCount = areaPosts.filter(p => p.type === 'offer').length;
+        return {
+          location,
+          posts: areaPosts,
+          requestCount,
+          offerCount,
+        };
+      })
+      .filter(item => item.posts.length > 0);
+  });
+
+  // Distinct count of filtered posts that have at least one valid municipality association
+  // Ensures multi-municipality Service Offers are NEVER counted multiple times in overall totals
+  readonly distinctMappedPostsCount = computed(() => {
+    const uniquePostIds = new Set<string>();
+    for (const area of this.mapAreaSummaries()) {
+      for (const post of area.posts) {
+        uniquePostIds.add(post.id);
+      }
+    }
+    return uniquePostIds.size;
   });
 
   // Demo user specific signals
@@ -161,6 +251,71 @@ export class PublicDataService {
     this.loadInitialData();
   }
 
+  private normalizeExistingPosts(rawPosts: any[]): CleaningPost[] {
+    const seedDefaults: Record<
+      string,
+      { targetLocationId: string | null; coverageAreaIds: string[]; optionalPublicAreaDescription: string | null }
+    > = {
+      p1: {
+        targetLocationId: 'naujan',
+        coverageAreaIds: [],
+        optionalPublicAreaDescription: 'Poblacion I area',
+      },
+      p2: {
+        targetLocationId: null,
+        coverageAreaIds: ['calapan-city', 'puerto-galera', 'san-teodoro'],
+        optionalPublicAreaDescription: 'Town proper & coastal barangays',
+      },
+      p3: {
+        targetLocationId: null,
+        coverageAreaIds: ['victoria', 'naujan', 'socorro'],
+        optionalPublicAreaDescription: 'Weekend home cleaning coverage',
+      },
+      p4: {
+        targetLocationId: 'calapan-city',
+        coverageAreaIds: [],
+        optionalPublicAreaDescription: 'San Vicente Central',
+      },
+      p5: {
+        targetLocationId: null,
+        coverageAreaIds: ['baco', 'calapan-city', 'pinamalayan'],
+        optionalPublicAreaDescription: 'Residential & post-renovation sites',
+      },
+    };
+
+    return rawPosts.map(p => {
+      const hasTarget = p.targetLocationId !== undefined;
+      const hasCoverage = Array.isArray(p.coverageAreaIds);
+
+      // Only backfill canonical seed locations for unmodified baseline seed IDs p1..p5
+      // Never invent locations for user-created records
+      if (!hasTarget && !hasCoverage && seedDefaults[p.id]) {
+        const def = seedDefaults[p.id];
+        return {
+          ...p,
+          targetLocationId: def.targetLocationId,
+          coverageAreaIds: [...def.coverageAreaIds],
+          optionalPublicAreaDescription: def.optionalPublicAreaDescription,
+        } as CleaningPost;
+      }
+
+      return {
+        ...p,
+        targetLocationId:
+          typeof p.targetLocationId === 'string' && isValidLocationId(p.targetLocationId)
+            ? p.targetLocationId
+            : null,
+        coverageAreaIds: Array.isArray(p.coverageAreaIds)
+          ? p.coverageAreaIds.filter((id: string) => isValidLocationId(id))
+          : [],
+        optionalPublicAreaDescription:
+          typeof p.optionalPublicAreaDescription === 'string' && p.optionalPublicAreaDescription.trim()
+            ? p.optionalPublicAreaDescription.trim()
+            : null,
+      } as CleaningPost;
+    });
+  }
+
   private loadInitialData(): void {
     let saved: any = null;
     try {
@@ -170,7 +325,7 @@ export class PublicDataService {
 
     if (saved && Array.isArray(saved.users) && Array.isArray(saved.posts)) {
       this.usersSignal.set(saved.users);
-      this.postsSignal.set(saved.posts);
+      this.postsSignal.set(this.normalizeExistingPosts(saved.posts));
       this.savedPostsSignal.set(saved.savedPosts || []);
       this.savedUsersSignal.set(saved.savedUsers || []);
       this.notificationsSignal.set(saved.notifications || []);
@@ -178,6 +333,7 @@ export class PublicDataService {
       this.appealsSignal.set(saved.appeals || []);
       this.auditLogsSignal.set(saved.auditLogs || []);
       this.adminNotificationsSignal.set(saved.adminNotifications || []);
+      this.persist();
     } else {
       this.seedDefaultData();
     }
@@ -216,7 +372,7 @@ export class PublicDataService {
         showPhone: false,
         showFacebook: true,
         mapConsent: false,
-        approxLocation: { lat: 13.4115, lng: 121.1803, label: 'Calapan City' },
+        approxLocation: { lat: 13.415, lng: 121.184, label: 'Calapan City' },
         available: true,
         state: 'active',
         warningCount: 0,
@@ -233,7 +389,7 @@ export class PublicDataService {
         showPhone: false,
         showFacebook: true,
         mapConsent: true,
-        approxLocation: { lat: 13.3236, lng: 121.3025, label: 'Naujan Poblacion' },
+        approxLocation: { lat: 13.328, lng: 121.306, label: 'Naujan (Approximate Area)' },
         available: false,
         state: 'active',
         warningCount: 0,
@@ -250,7 +406,7 @@ export class PublicDataService {
         showPhone: true,
         showFacebook: false,
         mapConsent: true,
-        approxLocation: { lat: 13.5042, lng: 120.9567, label: 'Puerto Galera' },
+        approxLocation: { lat: 13.506, lng: 120.959, label: 'Puerto Galera (Approximate Area)' },
         available: true,
         state: 'active',
         warningCount: 0,
@@ -267,7 +423,7 @@ export class PublicDataService {
         showPhone: false,
         showFacebook: true,
         mapConsent: true,
-        approxLocation: { lat: 13.1764, lng: 121.2828, label: 'Victoria' },
+        approxLocation: { lat: 13.180, lng: 121.286, label: 'Victoria (Approximate Area)' },
         available: true,
         state: 'active',
         warningCount: 0,
@@ -284,7 +440,7 @@ export class PublicDataService {
         showPhone: true,
         showFacebook: true,
         mapConsent: false,
-        approxLocation: { lat: 13.3592, lng: 121.0984, label: 'Baco' },
+        approxLocation: { lat: 13.362, lng: 121.102, label: 'Baco (Approximate Area)' },
         available: true,
         state: 'active',
         warningCount: 1,
@@ -306,6 +462,9 @@ export class PublicDataService {
         category: 'Kitchen',
         amount: 700,
         status: 'open',
+        targetLocationId: 'naujan',
+        coverageAreaIds: [],
+        optionalPublicAreaDescription: 'Poblacion I area',
         moderated: false,
         createdAt: '2026-11-08',
         updatedAt: '2026-11-08',
@@ -321,6 +480,9 @@ export class PublicDataService {
         category: 'Deep',
         amount: 850,
         status: 'active',
+        targetLocationId: null,
+        coverageAreaIds: ['calapan-city', 'puerto-galera', 'san-teodoro'],
+        optionalPublicAreaDescription: 'Town proper & coastal barangays',
         moderated: false,
         createdAt: '2026-11-08',
         updatedAt: '2026-11-08',
@@ -336,6 +498,9 @@ export class PublicDataService {
         category: 'General',
         amount: 500,
         status: 'active',
+        targetLocationId: null,
+        coverageAreaIds: ['victoria', 'naujan', 'socorro'],
+        optionalPublicAreaDescription: 'Weekend home cleaning coverage',
         moderated: false,
         createdAt: '2026-11-07',
         updatedAt: '2026-11-07',
@@ -351,6 +516,9 @@ export class PublicDataService {
         category: 'Bathroom',
         amount: 600,
         status: 'open',
+        targetLocationId: 'calapan-city',
+        coverageAreaIds: [],
+        optionalPublicAreaDescription: 'San Vicente Central',
         moderated: false,
         createdAt: '2026-11-06',
         updatedAt: '2026-11-06',
@@ -366,6 +534,9 @@ export class PublicDataService {
         category: 'General',
         amount: 1200,
         status: 'active',
+        targetLocationId: null,
+        coverageAreaIds: ['baco', 'calapan-city', 'pinamalayan'],
+        optionalPublicAreaDescription: 'Residential & post-renovation sites',
         moderated: false,
         createdAt: '2026-11-05',
         updatedAt: '2026-11-05',
@@ -565,8 +736,21 @@ export class PublicDataService {
     category: PostCategory;
     amount?: number | null;
     status: PostStatus;
+    targetLocationId?: string | null;
+    coverageAreaIds?: string[];
+    optionalPublicAreaDescription?: string | null;
   }): CleaningPost {
     const user = this.currentUser();
+    const validTarget =
+      data.type === 'request' && data.targetLocationId && isValidLocationId(data.targetLocationId)
+        ? data.targetLocationId
+        : null;
+    const validCoverage =
+      data.type === 'offer' && Array.isArray(data.coverageAreaIds)
+        ? Array.from(new Set(data.coverageAreaIds.filter(id => isValidLocationId(id))))
+        : [];
+    const cleanAreaDesc = data.optionalPublicAreaDescription?.trim() || null;
+
     const newPost: CleaningPost = {
       id: 'p-' + Math.random().toString(36).slice(2, 8),
       authorId: 'demo',
@@ -578,6 +762,9 @@ export class PublicDataService {
       category: data.category,
       amount: data.amount,
       status: data.status,
+      targetLocationId: validTarget,
+      coverageAreaIds: validCoverage,
+      optionalPublicAreaDescription: cleanAreaDesc,
       moderated: false,
       createdAt: new Date().toISOString().slice(0, 10),
       updatedAt: new Date().toISOString().slice(0, 10),
@@ -594,9 +781,28 @@ export class PublicDataService {
       posts.map(p => {
         if (p.id === id) {
           found = true;
+          const nextType = data.type ?? p.type;
+          const nextTarget =
+            data.targetLocationId !== undefined ? data.targetLocationId : p.targetLocationId;
+          const nextCoverage =
+            data.coverageAreaIds !== undefined ? data.coverageAreaIds : p.coverageAreaIds;
+          const nextOptional =
+            data.optionalPublicAreaDescription !== undefined
+              ? data.optionalPublicAreaDescription
+              : p.optionalPublicAreaDescription;
+
           return {
             ...p,
             ...data,
+            targetLocationId:
+              nextType === 'request' && nextTarget && isValidLocationId(nextTarget)
+                ? nextTarget
+                : null,
+            coverageAreaIds:
+              nextType === 'offer' && Array.isArray(nextCoverage)
+                ? Array.from(new Set(nextCoverage.filter(locId => isValidLocationId(locId))))
+                : [],
+            optionalPublicAreaDescription: nextOptional ? nextOptional.trim() : null,
             updatedAt: new Date().toISOString().slice(0, 10),
           };
         }
@@ -979,7 +1185,6 @@ export class PublicDataService {
       'Report Submitted',
       `Your report for ${data.targetType} (${data.targetId}) was submitted for administrative review.`
     );
-    // Notify administrator queue
     this.addAdminNotification(
       `New User Report (#${report.id})`,
       `A new report was filed for ${data.targetType} "${data.targetId}" (Reason: ${data.reason}).`
@@ -1080,7 +1285,6 @@ export class PublicDataService {
       'Appeal Received',
       `Your appeal for ${data.targetType} (${data.targetId}) has been logged.`
     );
-    // Notify administrator
     this.addAdminNotification(
       `New Moderation Appeal (#${appeal.id})`,
       `An appeal was submitted by appellant ${appeal.appellantId} regarding ${data.targetType} "${data.targetId}".`
@@ -1093,7 +1297,6 @@ export class PublicDataService {
     const appeal = this.appealsSignal().find(a => a.id === appealId);
     if (!appeal) return false;
 
-    // Apply outcome conditionally based on eligibility
     let remedyResult = 'Appeal approved.';
     if (appeal.targetType === 'post') {
       const post = this.getPostById(appeal.targetId);
@@ -1108,11 +1311,12 @@ export class PublicDataService {
         remedyResult = 'Appeal approved. Target post was already unmoderated.';
       }
     } else if (appeal.targetType === 'account') {
-      const user = this.getUserById(appeal.targetId);
+      const targetUserId = appeal.targetId === 'my-account' ? appeal.appellantId : appeal.targetId;
+      const user = this.getUserById(targetUserId);
       if (user && user.state === 'suspended') {
         this.usersSignal.update(users =>
           users.map(u => {
-            if (u.id === appeal.targetId) {
+            if (u.id === targetUserId) {
               return {
                 ...u,
                 state: 'active' as UserAccountState,
@@ -1203,6 +1407,10 @@ export class PublicDataService {
     this.selectedTag.set('all');
     this.selectedType.set('all');
     this.selectedCategory.set('all');
+    this.selectedLocationId.set('all');
+    this.selectedLocationMode.set('all');
+    this.selectedAvailability.set('all');
+    this.maxPriceFilter.set(null);
     this.selectedSort.set('newest');
   }
 }

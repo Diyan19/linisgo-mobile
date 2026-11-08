@@ -11,6 +11,8 @@ import {
   IonButton,
   IonIcon,
   IonBadge,
+  IonSelect,
+  IonSelectOption,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -21,10 +23,16 @@ import {
   personOutline,
   pricetagOutline,
   chevronForwardOutline,
-  shieldAlertOutline,
+  shieldOutline,
+  locationOutline,
 } from 'ionicons/icons';
 import { PublicDataService } from '../../../core/services/public-data.service';
-import { PostType } from '../../../shared/models/post.model';
+import { CleaningPost } from '../../../shared/models/post.model';
+import {
+  ORIENTAL_MINDORO_LOCATIONS,
+  doesPostMatchLocationFilter,
+  getPostLocationSummary,
+} from '../../../shared/models/location.model';
 
 @Component({
   selector: 'app-admin-posts',
@@ -43,17 +51,22 @@ import { PostType } from '../../../shared/models/post.model';
     IonButton,
     IonIcon,
     IonBadge,
+    IonSelect,
+    IonSelectOption,
   ],
 })
 export class AdminPostsPage {
   readonly dataService = inject(PublicDataService);
+  readonly locations = ORIENTAL_MINDORO_LOCATIONS;
 
   readonly searchQuery = signal<string>('');
   readonly selectedFilter = signal<'all' | 'requests' | 'offers' | 'hidden'>('all');
+  readonly selectedLocationId = signal<string>('all');
 
   readonly filteredPosts = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     const filter = this.selectedFilter();
+    const locId = this.selectedLocationId();
     const all = this.dataService.postsSignal();
 
     return all.filter(p => {
@@ -61,12 +74,17 @@ export class AdminPostsPage {
       if (filter === 'offers' && p.type !== 'offer') return false;
       if (filter === 'hidden' && !p.moderated) return false;
 
+      if (locId !== 'all' && !doesPostMatchLocationFilter(p, locId, 'all')) {
+        return false;
+      }
+
       if (query) {
         const matchTitle = p.title.toLowerCase().includes(query);
         const matchDesc = p.description.toLowerCase().includes(query);
         const matchAuthor = p.authorName.toLowerCase().includes(query);
         const matchCat = p.category.toLowerCase().includes(query);
-        if (!matchTitle && !matchDesc && !matchAuthor && !matchCat) return false;
+        const matchLoc = getPostLocationSummary(p).toLowerCase().includes(query);
+        if (!matchTitle && !matchDesc && !matchAuthor && !matchCat && !matchLoc) return false;
       }
       return true;
     });
@@ -81,8 +99,13 @@ export class AdminPostsPage {
       personOutline,
       pricetagOutline,
       chevronForwardOutline,
-      shieldAlertOutline,
+      shieldOutline,
+      locationOutline,
     });
+  }
+
+  getLocationSummary(post: CleaningPost): string {
+    return getPostLocationSummary(post);
   }
 
   onSearch(event: any): void {
@@ -91,5 +114,9 @@ export class AdminPostsPage {
 
   onFilterChange(event: any): void {
     this.selectedFilter.set(event.detail.value || 'all');
+  }
+
+  onLocationChange(event: any): void {
+    this.selectedLocationId.set(event.detail.value || 'all');
   }
 }

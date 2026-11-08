@@ -20,7 +20,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  shieldAlertOutline,
+  shieldOutline,
   personOutline,
   documentsOutline,
   timeOutline,
@@ -86,7 +86,7 @@ export class AdminReportReviewPage {
 
   constructor() {
     addIcons({
-      shieldAlertOutline,
+      shieldOutline,
       personOutline,
       documentsOutline,
       timeOutline,

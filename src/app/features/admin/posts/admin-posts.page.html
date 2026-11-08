@@ -2,16 +2,35 @@
   <div class="content-wrapper">
     <div class="page-header">
       <h1 class="page-title">Service Posts Management</h1>
-      <p class="page-subtitle">Oversee published requests and offers, audit content, and enforce hiding restrictions.</p>
+      <p class="page-subtitle">Oversee published requests and offers, audit coverage areas, and enforce hiding restrictions.</p>
     </div>
 
     <!-- Searchbar -->
     <ion-searchbar
       [value]="searchQuery()"
-      placeholder="Search posts by title, description, or author..."
+      placeholder="Search posts by title, author, or municipality..."
       (ionInput)="onSearch($event)"
       class="custom-search"
     ></ion-searchbar>
+
+    <!-- Location Filter for Admin -->
+    <div style="background: #ffffff; border: 1px solid #dce2e5; border-radius: 10px; padding: 6px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <span style="font-size: 0.78rem; font-weight: 700; color: #3b4e5b; display: flex; align-items: center; gap: 5px;">
+        <ion-icon name="location-outline"></ion-icon>
+        Municipality Coverage:
+      </span>
+      <ion-select
+        [value]="selectedLocationId()"
+        interface="popover"
+        (ionChange)="onLocationChange($event)"
+        style="font-size: 0.82rem; font-weight: 700; color: #2b4354; max-width: 60%;"
+      >
+        <ion-select-option value="all">All Locations (Oriental Mindoro)</ion-select-option>
+        @for (loc of locations; track loc.id) {
+          <ion-select-option [value]="loc.id">{{ loc.name }}</ion-select-option>
+        }
+      </ion-select>
+    </div>
 
     <!-- Post Filter Segment -->
     <ion-segment [value]="selectedFilter()" (ionChange)="onFilterChange($event)" class="filter-segment">
@@ -51,6 +70,14 @@
             <h3 class="post-title">{{ post.title }}</h3>
             <p class="post-desc">{{ post.description }}</p>
 
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.76rem; color: #1e3342; background: #f2f7f9; border: 1px solid #d5e2e8; border-radius: 8px; padding: 5px 9px; margin: 8px 0;">
+              <ion-icon name="location-outline" style="color: #2b4354; flex-shrink: 0;"></ion-icon>
+              <span>
+                <b>{{ post.type === 'request' ? 'Target Area:' : 'Service Coverage:' }}</b>
+                {{ getLocationSummary(post) }}
+              </span>
+            </div>
+
             <div class="post-footer-row">
               <div class="meta-items">
                 <span class="meta-author">
@@ -58,7 +85,7 @@
                   {{ post.authorName }}
                 </span>
                 <span class="meta-cat">
-                  <ion-icon name="pricetagOutline"></ion-icon>
+                  <ion-icon name="pricetag-outline"></ion-icon>
                   {{ post.category }}
                 </span>
                 <span class="meta-amount">

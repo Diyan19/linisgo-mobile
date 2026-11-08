@@ -10,17 +10,65 @@
       <!-- Searchbar -->
       <ion-searchbar
         [value]="dataService.searchQuery()"
-        placeholder="Search posts, services, locations..."
+        placeholder="Search posts, services, municipalities..."
         (ionInput)="onSearchChange($event)"
         class="custom-searchbar"
         debounce="200"
       ></ion-searchbar>
+
+      <!-- Location Municipality Filter -->
+      <div class="filter-group">
+        <label class="filter-label" style="display: flex; align-items: center; gap: 5px;">
+          <ion-icon name="location-outline" style="color: #2b4354;"></ion-icon>
+          City / Municipality (Oriental Mindoro):
+        </label>
+        <ion-select
+          [value]="dataService.selectedLocationId()"
+          interface="popover"
+          (ionChange)="onLocationChange($event)"
+          style="background: #f4f7f9; border: 1px solid #cbd5da; border-radius: 8px; padding: 6px 10px; font-size: 0.84rem; font-weight: 700; color: #20333f; margin-bottom: 8px;"
+        >
+          <ion-select-option value="all">All Locations (Oriental Mindoro)</ion-select-option>
+          @for (loc of locations; track loc.id) {
+            <ion-select-option [value]="loc.id">{{ loc.name }}</ion-select-option>
+          }
+        </ion-select>
+
+        <!-- Location Coverage Scope Mode Chips -->
+        <div class="chip-row">
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedLocationMode() === 'all'"
+            (click)="onLocationModeChange('all')"
+          >
+            All in {{ selectedLocationLabel }}
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedLocationMode() === 'requests-in'"
+            (click)="onLocationModeChange('requests-in')"
+          >
+            Requests in Location
+          </button>
+          <button
+            type="button"
+            class="filter-chip"
+            [class.active]="dataService.selectedLocationMode() === 'offers-covering'"
+            (click)="onLocationModeChange('offers-covering')"
+          >
+            Offers Covering Location
+          </button>
+        </div>
+      </div>
 
       <!-- User Status Tag Chips -->
       <div class="filter-group">
         <label class="filter-label">Author profile tag:</label>
         <div class="chip-row">
           <button
+            type="button"
             class="filter-chip"
             [class.active]="dataService.selectedTag() === 'all'"
             (click)="onTagChange('all')"
@@ -28,6 +76,7 @@
             Show All
           </button>
           <button
+            type="button"
             class="filter-chip"
             [class.active]="dataService.selectedTag() === 'client'"
             (click)="onTagChange('client')"
@@ -35,6 +84,7 @@
             Clients Only
           </button>
           <button
+            type="button"
             class="filter-chip"
             [class.active]="dataService.selectedTag() === 'provider'"
             (click)="onTagChange('provider')"
@@ -49,6 +99,7 @@
         <label class="filter-label">Post type:</label>
         <div class="chip-row">
           <button
+            type="button"
             class="filter-chip"
             [class.active]="dataService.selectedType() === 'all'"
             (click)="onTypeChange('all')"
@@ -56,6 +107,7 @@
             All Posts
           </button>
           <button
+            type="button"
             class="filter-chip"
             [class.active]="dataService.selectedType() === 'request'"
             (click)="onTypeChange('request')"
@@ -63,6 +115,7 @@
             Requests Only
           </button>
           <button
+            type="button"
             class="filter-chip"
             [class.active]="dataService.selectedType() === 'offer'"
             (click)="onTypeChange('offer')"
@@ -74,12 +127,12 @@
 
       <!-- More Filters Toggle -->
       <div class="filter-actions-row">
-        <button class="toggle-btn" (click)="toggleMoreFilters()">
+        <button type="button" class="toggle-btn" (click)="toggleMoreFilters()">
           <ion-icon name="funnel-outline"></ion-icon>
           {{ showMoreFilters ? 'Hide' : 'More' }} filters
         </button>
 
-        <button class="clear-btn" (click)="clearFilters()">
+        <button type="button" class="clear-btn" (click)="clearFilters()">
           <ion-icon name="refresh-outline"></ion-icon>
           Clear filters
         </button>
@@ -106,6 +159,30 @@
           </div>
 
           <div class="panel-field">
+            <label>Author Availability</label>
+            <ion-select
+              [value]="dataService.selectedAvailability()"
+              interface="popover"
+              (ionChange)="onAvailabilityChange($event)"
+              class="panel-select"
+            >
+              <ion-select-option value="all">Any availability</ion-select-option>
+              <ion-select-option value="available">Available authors only</ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="panel-field">
+            <label>Max Price / Budget (PHP, optional)</label>
+            <ion-input
+              type="number"
+              [value]="dataService.maxPriceFilter()"
+              placeholder="e.g., 1000"
+              (ionInput)="onMaxPriceChange($event)"
+              class="panel-select"
+            ></ion-input>
+          </div>
+
+          <div class="panel-field">
             <label>Sort By</label>
             <ion-select
               [value]="dataService.selectedSort()"
@@ -118,7 +195,9 @@
             </ion-select>
           </div>
 
-          <p class="panel-hint">Note: Status tag and post type are separate filters and can be combined freely.</p>
+          <p class="panel-hint">
+            Location, profile tag, post type, category, availability, and price filters work together seamlessly.
+          </p>
         </div>
       }
     </div>
@@ -127,6 +206,9 @@
     <div class="results-bar">
       <span class="count-text">
         <b>{{ dataService.filteredPosts().length }}</b> matching posts
+        @if (dataService.selectedLocationId() !== 'all') {
+          <span> in/covering <b>{{ selectedLocationLabel }}</b></span>
+        }
       </span>
       <a [routerLink]="mapLink" class="map-view-link">
         <ion-icon name="map-outline"></ion-icon>
@@ -141,7 +223,7 @@
       } @empty {
         <div class="empty-state">
           <p class="empty-title">No matching posts found</p>
-          <p class="empty-desc">Try clearing filters or searching with different keywords.</p>
+          <p class="empty-desc">Try selecting "All Locations" or clearing your active filters.</p>
           <ion-button size="small" fill="outline" color="primary" (click)="clearFilters()">
             Reset All Filters
           </ion-button>

@@ -89,34 +89,43 @@
 
       <div class="status-summary">
         <span class="status-label">Current State:</span>
-        <ion-badge [color]="dataService.currentUser()?.state === 'active' ? 'success' : 'warning'" class="state-badge">
+        <ion-badge [color]="dataService.currentUser()?.state === 'active' ? 'success' : (dataService.currentUser()?.state === 'suspended' ? 'danger' : 'warning')" class="state-badge">
           {{ dataService.currentUser()?.state }}
         </ion-badge>
       </div>
 
-      <p class="card-desc">
-        @if (dataService.currentUser()?.state === 'active') {
-          Temporarily pause your activity. Deactivating your account hides all your posts and removes you from the map.
-        } @else {
-          Your account is currently paused. Click below to reactivate and restore your profile and posts.
-        }
-      </p>
+      @if (dataService.currentUser()?.state === 'suspended') {
+        <p class="card-desc" style="color: #991b1b; font-weight: 600;">
+          Your account has been suspended by an administrator ({{ dataService.currentUser()?.suspensionReason || 'Policy violation' }}). Suspended accounts cannot be self-reactivated.
+        </p>
+        <ion-button expand="block" color="danger" fill="outline" routerLink="/user/appeal">
+          Submit Suspension Appeal
+        </ion-button>
+      } @else {
+        <p class="card-desc">
+          @if (dataService.currentUser()?.state === 'active') {
+            Temporarily pause your activity. Deactivating your account hides all your posts and removes you from the map.
+          } @else {
+            Your account is currently paused. Click below to reactivate and restore your profile and posts.
+          }
+        </p>
 
-      <ion-button
-        expand="block"
-        fill="outline"
-        [color]="dataService.currentUser()?.state === 'active' ? 'warning' : 'success'"
-        (click)="onToggleDeactivation()"
-        class="deactivate-btn"
-      >
-        @if (dataService.currentUser()?.state === 'active') {
-          <ion-icon name="pause-outline" slot="start"></ion-icon>
-          Deactivate Account
-        } @else {
-          <ion-icon name="play-outline" slot="start"></ion-icon>
-          Reactivate Account
-        }
-      </ion-button>
+        <ion-button
+          expand="block"
+          fill="outline"
+          [color]="dataService.currentUser()?.state === 'active' ? 'warning' : 'success'"
+          (click)="onToggleDeactivation()"
+          class="deactivate-btn"
+        >
+          @if (dataService.currentUser()?.state === 'active') {
+            <ion-icon name="pause-outline" slot="start"></ion-icon>
+            Deactivate Account
+          } @else {
+            <ion-icon name="play-outline" slot="start"></ion-icon>
+            Reactivate Account
+          }
+        </ion-button>
+      }
     </div>
 
     <!-- Section 4: Danger Zone -->

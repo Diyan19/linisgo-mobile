@@ -38,6 +38,51 @@
 
           <div class="divider"></div>
 
+          <!-- Location & Coverage Details Box -->
+          <div style="background: #f2f7fa; border: 1px solid #cce0eb; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.9rem; color: #1e3342;">
+                <ion-icon name="location-outline" style="font-size: 1.1rem; color: #2b4354;"></ion-icon>
+                <span>{{ post.type === 'request' ? 'Where Assistance Is Needed' : 'Service Coverage Areas (Oriental Mindoro)' }}</span>
+              </div>
+              @if (primaryLocationId) {
+                <button
+                  type="button"
+                  (click)="viewOnMap(primaryLocationId)"
+                  style="background: #ffffff; border: 1px solid #9ab7c7; border-radius: 999px; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; color: #2b4354; cursor: pointer;"
+                >
+                  View on Map ›
+                </button>
+              }
+            </div>
+
+            @if (post.type === 'request') {
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                <span style="background: #2b4354; color: #ffffff; border-radius: 999px; padding: 4px 12px; font-size: 0.8rem; font-weight: 700;">
+                  {{ requestLocationName }}
+                </span>
+              </div>
+            } @else {
+              @if (offerCoverageNames.length > 0) {
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  @for (locName of offerCoverageNames; track locName) {
+                    <span style="background: #2b4354; color: #ffffff; border-radius: 999px; padding: 4px 11px; font-size: 0.78rem; font-weight: 700;">
+                      {{ locName }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <span style="font-size: 0.82rem; color: #657580; font-style: italic;">Coverage area not specified</span>
+              }
+            }
+
+            @if (post.optionalPublicAreaDescription) {
+              <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #3f525f;">
+                <b>Additional Area Note:</b> {{ post.optionalPublicAreaDescription }}
+              </p>
+            }
+          </div>
+
           <h2 class="sub-heading">Cleaning Details</h2>
           <p class="post-desc">{{ post.description }}</p>
 
@@ -45,6 +90,12 @@
             <div class="spec-item">
               <span class="spec-label">Category:</span>
               <span class="spec-value">{{ post.category }} cleaning</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">{{ post.type === 'request' ? 'Target Municipality' : 'Covered Municipalities' }}:</span>
+              <span class="spec-value">
+                {{ post.type === 'request' ? requestLocationName : (offerCoverageNames.length ? offerCoverageNames.join(', ') : 'Not specified') }}
+              </span>
             </div>
             <div class="spec-item">
               <span class="spec-label">{{ post.type === 'request' ? 'Budget' : 'Price / Rate' }}:</span>

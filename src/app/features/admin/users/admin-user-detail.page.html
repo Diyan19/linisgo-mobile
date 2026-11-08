@@ -93,7 +93,7 @@
               <div class="banner-body">
                 <h4 class="banner-title">Account Currently Suspended</h4>
                 <p class="banner-text">
-                  Type: <b>{{ u.suspensionType | uppercase }}</b>
+                  Type: <b>{{ (u.suspensionType || '').toUpperCase() }}</b>
                   @if (u.suspensionType === 'temporary') {
                     (Until: {{ u.suspendedUntil }})
                   }
