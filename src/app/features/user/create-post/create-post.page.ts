@@ -95,7 +95,7 @@ export class CreatePostPage implements OnInit {
       this.editId = params['editId'] || null;
       if (this.editId) {
         const post = this.dataService.getPostById(this.editId);
-        if (post && post.authorId === 'demo') {
+        if (post && post.authorId === this.dataService.activeActorId()) {
           this.editingExistingStatus = post.status;
           this.postType = post.type;
           this.title = post.title;

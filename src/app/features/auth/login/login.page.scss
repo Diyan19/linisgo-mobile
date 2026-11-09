@@ -9,7 +9,7 @@
   margin-bottom: 16px;
 
   .logo-placeholder {
-    height: 70px;
+    height: 60px;
     background: #edf1f3;
     border: 1px dashed #cbd5da;
     border-radius: 12px;
@@ -17,7 +17,8 @@
     align-items: center;
     justify-content: center;
     font-size: 0.8rem;
-    color: #7b8891;
+    font-weight: 700;
+    color: #5b6d7a;
     margin-bottom: 12px;
   }
 
@@ -29,54 +30,112 @@
   }
 
   .auth-subtitle {
-    font-size: 0.85rem;
-    color: #657580;
+    font-size: 0.84rem;
+    color: #526470;
     margin: 0;
   }
 }
 
-.demo-box {
-  background: #f0f4f6;
-  border: 1px solid #d5e0e6;
+.firebase-status-box {
+  background: #f2f7f9;
+  border: 1px solid #cde0e8;
   border-radius: 12px;
   padding: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 
-  .demo-box-title {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    color: #3c5263;
-    margin-bottom: 6px;
-    letter-spacing: 0.5px;
+  &.needs-key {
+    background: #fffbeb;
+    border-color: #f59e0b;
   }
 
-  .demo-account-info {
-    font-size: 0.8rem;
-    color: #354754;
-    line-height: 1.45;
-    margin-bottom: 8px;
-  }
-
-  .quick-fill-row {
+  .fb-status-top {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 8px;
+    margin-bottom: 6px;
+  }
 
-    .fill-btn {
-      flex: 1;
-      background: #ffffff;
-      border: 1px solid #cbd5da;
-      border-radius: 6px;
-      padding: 6px 8px;
-      font-size: 0.75rem;
+  .fb-title-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #1e3342;
+
+    ion-icon {
+      font-size: 1rem;
+      color: #2b5876;
+    }
+  }
+
+  .fb-meta-text {
+    font-size: 0.74rem;
+    color: #4b5e6d;
+    line-height: 1.4;
+    word-break: break-all;
+
+    code {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+    }
+  }
+
+  .fb-config-editor {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #cbd5e1;
+
+    .config-label {
+      display: block;
+      font-size: 0.76rem;
       font-weight: 700;
-      color: #2b4354;
-      cursor: pointer;
+      color: #334155;
+      margin-bottom: 6px;
+      line-height: 1.35;
+    }
 
-      &:hover {
-        background: #eef2f5;
-      }
+    .config-raw-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid #94a3b8;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      background: #ffffff;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .config-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .config-feedback {
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: #b45309;
+      font-weight: 600;
+    }
+  }
+
+  .fb-config-toggle-row {
+    margin-top: 6px;
+    display: flex;
+    justify-content: flex-end;
+
+    .text-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #2b5876;
+      cursor: pointer;
     }
   }
 }
@@ -111,22 +170,67 @@
     font-size: 0.9rem;
     --padding-start: 4px;
   }
+
+  .password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    .custom-input {
+      flex: 1;
+      padding-right: 40px;
+    }
+
+    .pw-toggle-btn {
+      position: absolute;
+      right: 8px;
+      background: transparent;
+      border: none;
+      color: #526470;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      cursor: pointer;
+      z-index: 2;
+    }
+  }
 }
 
 .feedback-box {
   background: #fdf6e7;
   border: 1px solid #ecd8a9;
   border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 0.78rem;
+  padding: 10px 12px;
+  font-size: 0.8rem;
   color: #7b5f1e;
   margin-bottom: 12px;
+  line-height: 1.4;
+
+  &.error {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+  }
+
+  &.success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+  }
 }
 
 .submit-btn {
   --border-radius: 10px;
   font-weight: 700;
   margin-top: 12px;
+
+  .btn-spinner {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+  }
 }
 
 .auth-links-row {
@@ -151,4 +255,58 @@
 
 .guest-action {
   text-align: center;
+  margin-bottom: 14px;
+}
+
+.dev-sandbox-box {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+
+  .sandbox-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #475569;
+
+    .sandbox-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  .sandbox-body {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+
+    .sandbox-disclaimer {
+      font-size: 0.74rem;
+      color: #64748b;
+      line-height: 1.4;
+      margin: 0 0 8px 0;
+    }
+
+    .sandbox-btn {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #334155;
+      cursor: pointer;
+
+      &:hover {
+        background: #f1f5f9;
+      }
+    }
+  }
 }

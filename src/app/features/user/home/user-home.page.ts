@@ -1,5 +1,5 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, inject, OnInit } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   IonContent,
   IonButton,
@@ -17,8 +17,11 @@ import {
   bookmarkOutline,
   documentTextOutline,
   notificationsOutline,
+  shieldCheckmarkOutline,
+  lockClosedOutline,
 } from 'ionicons/icons';
 import { PublicDataService } from '../../../core/services/public-data.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { PostCardComponent } from '../../../shared/components/post-card/post-card.component';
 
 @Component({
@@ -38,9 +41,13 @@ import { PostCardComponent } from '../../../shared/components/post-card/post-car
     PostCardComponent,
   ],
 })
-export class UserHomePage {
+export class UserHomePage implements OnInit {
   readonly dataService = inject(PublicDataService);
+  readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  adminAccessDeniedNotice = false;
 
   constructor() {
     addIcons({
@@ -50,6 +57,14 @@ export class UserHomePage {
       bookmarkOutline,
       documentTextOutline,
       notificationsOutline,
+      shieldCheckmarkOutline,
+      lockClosedOutline,
+    });
+  }
+
+  ngOnInit(): void {
+    this.route.queryParamMap.subscribe(params => {
+      this.adminAccessDeniedNotice = params.get('adminDenied') === '1';
     });
   }
 
@@ -58,7 +73,7 @@ export class UserHomePage {
   }
 
   get totalSavedCount(): number {
-    return this.dataService.savedPostsSignal().length + this.dataService.savedUsersSignal().length;
+    return this.dataService.activeSavedPostIds().length + this.dataService.activeSavedUserIds().length;
   }
 
   get recentPosts() {

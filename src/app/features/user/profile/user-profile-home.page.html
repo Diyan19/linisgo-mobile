@@ -5,14 +5,85 @@
       <div class="top-row">
         <div class="user-avatar">{{ userInitial }}</div>
         <div class="user-info">
-          <h1 class="user-name">{{ user?.name || 'User' }}</h1>
+          <h1 class="user-name">{{ user?.name || authService.currentUserDisplayName() }}</h1>
+          <div class="user-email-line">
+            <span>{{ authService.currentUserEmail() }}</span>
+          </div>
           <div class="badge-row">
             <ion-badge color="secondary" class="tag-badge">{{ tagLabel }} tag</ion-badge>
             <ion-badge [color]="user?.available ? 'success' : 'medium'" class="avail-badge">
               {{ user?.available ? 'Available' : 'Unavailable' }}
             </ion-badge>
+            @if (authService.isEmailVerified()) {
+              <ion-badge color="success" class="avail-badge">
+                ✓ Email Verified
+              </ion-badge>
+            } @else {
+              <ion-badge color="warning" class="avail-badge">
+                ! Email Unverified
+              </ion-badge>
+            }
           </div>
         </div>
+      </div>
+
+      <!-- Firebase Email Verification Banner (Part 9) -->
+      <div class="fb-verification-box">
+        <div class="fb-ver-header">
+          <span class="fb-uid-text">Firebase UID: <code>{{ authService.currentUserId() }}</code></span>
+          <span class="fb-status-chip" [class.verified]="authService.isEmailVerified()">
+            {{ authService.isEmailVerified() ? 'Verified' : 'Unverified' }}
+          </span>
+        </div>
+
+        @if (!authService.isEmailVerified()) {
+          <p class="fb-ver-note">
+            Your email address is not yet verified in Firebase Authentication. You can still browse and create posts in Task 1.0, or verify your email below.
+          </p>
+          <div class="fb-ver-btns">
+            <button
+              type="button"
+              class="ver-action-btn primary"
+              (click)="onResendVerification()"
+              [disabled]="isSendingVerification || authService.verificationCooldownSeconds() > 0"
+            >
+              @if (isSendingVerification) {
+                Sending...
+              } @else if (authService.verificationCooldownSeconds() > 0) {
+                Resend in {{ authService.verificationCooldownSeconds() }}s
+              } @else {
+                Resend Verification Email
+              }
+            </button>
+            <button
+              type="button"
+              class="ver-action-btn secondary"
+              (click)="onRefreshVerification()"
+              [disabled]="isRefreshingVerification"
+            >
+              @if (isRefreshingVerification) {
+                Checking...
+              } @else {
+                Refresh Verification Status
+              }
+            </button>
+          </div>
+        } @else {
+          <div class="fb-ver-btns">
+            <button
+              type="button"
+              class="ver-action-btn secondary"
+              (click)="onRefreshVerification()"
+              [disabled]="isRefreshingVerification"
+            >
+              {{ isRefreshingVerification ? 'Checking...' : 'Refresh Verification Status' }}
+            </button>
+          </div>
+        }
+
+        @if (verificationToast) {
+          <div class="ver-toast" [class.error]="verificationToastIsError">{{ verificationToast }}</div>
+        }
       </div>
 
       <div class="about-box">
@@ -55,7 +126,7 @@
 
         <button class="nav-btn" routerLink="/user/saved">
           <ion-icon name="bookmark-outline" class="nav-btn-icon"></ion-icon>
-          <span class="nav-btn-label">☆ Saved ({{ dataService.savedPostsSignal().length + dataService.savedUsersSignal().length }})</span>
+          <span class="nav-btn-label">☆ Saved ({{ dataService.activeSavedPostIds().length + dataService.activeSavedUserIds().length }})</span>
         </button>
 
         <button class="nav-btn" routerLink="/user/notifications">

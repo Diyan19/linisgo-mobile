@@ -113,7 +113,7 @@ export class UserProfilePage implements OnInit {
   }
 
   get isOwnProfile(): boolean {
-    return this.authService.isLoggedIn() && this.user?.id === 'demo';
+    return this.authService.isLoggedIn() && this.user?.id === this.dataService.activeActorId();
   }
 
   toggleSaveUser(): void {

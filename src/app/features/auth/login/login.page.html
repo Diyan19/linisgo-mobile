@@ -10,55 +10,125 @@
 <ion-content [fullscreen]="true" class="ion-padding page-content">
   <div class="content-wrapper">
     <div class="auth-header">
-      <div class="logo-placeholder">[ LinisGo Finder Logo ]</div>
+      <div class="logo-placeholder">[ LinisGo Finder — Oriental Mindoro ]</div>
       <h1 class="auth-title">Sign in to LinisGo Finder</h1>
-      <p class="auth-subtitle">Academic household cleaning service discovery preview.</p>
+      <p class="auth-subtitle">
+        Real Firebase Authentication ({{ projectSummary.projectId }} · Email/Password)
+      </p>
     </div>
 
-    <!-- Demo Notice -->
-    <div class="demo-box">
-      <span class="demo-box-title">Demo Account Preview</span>
-      <div class="demo-account-info">
-        <b>DEMO USER:</b> user&#64;linisgo.demo (Password: User123!)<br />
-        <b>DEMO ADMIN:</b> admin&#64;linisgo.demo (Password: Admin123!)
+    <!-- Firebase Project & Web SDK Connection Status Card -->
+    <div class="firebase-status-box" [class.needs-key]="!authService.firebaseApiKeyConfigured()">
+      <div class="fb-status-top">
+        <div class="fb-title-group">
+          <ion-icon name="shield-checkmark-outline"></ion-icon>
+          <span>Firebase Auth: <b>{{ projectSummary.projectId }}</b></span>
+        </div>
+        <ion-badge [color]="authService.firebaseApiKeyConfigured() ? 'success' : 'warning'">
+          {{ authService.firebaseApiKeyConfigured() ? 'Web SDK Ready' : 'Web API Key Required' }}
+        </ion-badge>
       </div>
-      <div class="quick-fill-row">
-        <button class="fill-btn" (click)="fillUserDemo()">Fill Demo User</button>
-        <button class="fill-btn" (click)="fillAdminDemo()">Fill Demo Admin</button>
+      <div class="fb-meta-text">
+        Auth Domain: <code>{{ projectSummary.authDomain }}</code> · App ID: <code>{{ projectSummary.appId }}</code>
       </div>
+
+      @if (!authService.firebaseApiKeyConfigured() || showConfigEditor) {
+        <div class="fb-config-editor">
+          <label for="fb-api-key-input" class="config-label">
+            Paste Public Firebase Web API Key (<code>AIza...</code>) or <code>firebaseConfig</code> for <b>linisgo-mobile</b>:
+          </label>
+          <input
+            id="fb-api-key-input"
+            type="text"
+            [value]="firebaseConfigInput"
+            (input)="firebaseConfigInput = $any($event.target).value"
+            placeholder="AIzaSy... or full firebaseConfig snippet (Never paste private keys)"
+            class="config-raw-input"
+          />
+          <div class="config-actions">
+            <ion-button size="small" color="primary" (click)="onApplyFirebaseConfig()">
+              Save Web API Key
+            </ion-button>
+            @if (authService.firebaseApiKeyConfigured()) {
+              <ion-button size="small" fill="clear" color="medium" (click)="showConfigEditor = false">
+                Cancel
+              </ion-button>
+            }
+          </div>
+          @if (configFeedback) {
+            <div class="config-feedback">{{ configFeedback }}</div>
+          }
+        </div>
+      } @else {
+        <div class="fb-config-toggle-row">
+          <button type="button" class="text-btn" (click)="showConfigEditor = true">
+            Update Web API Key ›
+          </button>
+        </div>
+      }
     </div>
 
-    <!-- Login Form Card -->
+    <!-- Real Firebase Sign-In Form Card -->
     <ion-card class="form-card">
       <ion-card-content>
         <div class="form-field">
-          <label>Email Address</label>
+          <label for="login-email">Email Address *</label>
           <ion-input
+            id="login-email"
             type="email"
             [value]="email"
-            placeholder="Enter email"
+            placeholder="Enter your registered email"
             class="custom-input"
             (ionInput)="email = $event.detail.value || ''"
           ></ion-input>
         </div>
 
         <div class="form-field">
-          <label>Password</label>
-          <ion-input
-            type="password"
-            [value]="password"
-            placeholder="Enter password"
-            class="custom-input"
-            (ionInput)="password = $event.detail.value || ''"
-          ></ion-input>
+          <label for="login-password">Password *</label>
+          <div class="password-input-wrap">
+            <ion-input
+              id="login-password"
+              [type]="showPassword ? 'text' : 'password'"
+              [value]="password"
+              placeholder="Enter your password"
+              class="custom-input"
+              (ionInput)="password = $event.detail.value || ''"
+            ></ion-input>
+            <button
+              type="button"
+              class="pw-toggle-btn"
+              (click)="togglePasswordVisibility()"
+              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+            >
+              <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </button>
+          </div>
         </div>
 
         @if (feedbackMessage) {
-          <div class="feedback-box">{{ feedbackMessage }}</div>
+          <div
+            class="feedback-box"
+            [class.error]="feedbackType === 'error'"
+            [class.success]="feedbackType === 'success'"
+            role="alert"
+          >
+            {{ feedbackMessage }}
+          </div>
         }
 
-        <ion-button expand="block" color="primary" class="submit-btn" (click)="onSignIn()">
-          Sign In
+        <ion-button
+          expand="block"
+          color="primary"
+          class="submit-btn"
+          [disabled]="isSubmitting"
+          (click)="onSignIn()"
+        >
+          @if (isSubmitting) {
+            <ion-spinner name="crescent" class="btn-spinner"></ion-spinner>
+            <span>Signing in with Firebase...</span>
+          } @else {
+            <span>Sign In</span>
+          }
         </ion-button>
 
         <div class="auth-links-row">
@@ -73,5 +143,29 @@
         Continue browsing as Guest ›
       </ion-button>
     </div>
+
+    <!-- Isolated Development-Only Admin UI Sandbox (Cannot be mistaken for real authorization) -->
+    @if (isDevelopmentMode) {
+      <div class="dev-sandbox-box">
+        <div class="sandbox-header" (click)="showDevAdminSandbox = !showDevAdminSandbox">
+          <div class="sandbox-title-row">
+            <ion-icon name="construct-outline"></ion-icon>
+            <span>Development-Only Admin UI Sandbox (Isolated Preview)</span>
+          </div>
+          <span class="sandbox-chevron">{{ showDevAdminSandbox ? '▾' : '▸' }}</span>
+        </div>
+
+        @if (showDevAdminSandbox) {
+          <div class="sandbox-body">
+            <p class="sandbox-disclaimer">
+              <b>Security Boundary Notice:</b> Real Administrator authorization requires verified Firebase custom claims via the private Node.js + Express backend (Task 1.1). Regular Firebase users are strictly denied Admin access. This isolated development sandbox is provided solely to inspect the Task 0.4 Admin UI templates during frontend verification.
+            </p>
+            <button type="button" class="sandbox-btn" (click)="launchDevOnlyAdminSandbox()">
+              Open Isolated Admin UI Preview (Dev Sandbox Only) ›
+            </button>
+          </div>
+        }
+      </div>
+    }
   </div>
 </ion-content>

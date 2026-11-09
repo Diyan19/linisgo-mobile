@@ -18,12 +18,78 @@
     <div class="status-notice">
       <ion-icon name="alert-circle-outline"></ion-icon>
       <div class="notice-text">
-        <b>Academic Scope Compliance:</b> Real Firebase credentials, Cloudinary API keys, and external backend endpoints remain intentionally disconnected in this phase.
+        <b>Task 1.1 Scope Status:</b> Standalone Node.js + Express + TypeScript REST API (<code>api/</code>) and Firebase Authentication (<code>linisgo-mobile</code>) are integrated. Cloud Firestore mutations and role promotions remain intentionally deferred until Task 1.2+.
       </div>
     </div>
 
+    <!-- Live Developer API Diagnostic Panel (GET /api/health & GET /api/auth/me) -->
+    <ion-card class="service-card diag-panel-card">
+      <ion-card-content>
+        <div class="service-header">
+          <div class="service-title-wrap">
+            <span class="service-category">Live Backend Verification (Task 1.1 Section 10)</span>
+            <h3 class="service-name">Private REST API Diagnostic (<code>GET /api/auth/me</code>)</h3>
+          </div>
+          <ion-button
+            size="small"
+            color="primary"
+            (click)="runLiveDiagnostic()"
+            [disabled]="privateApi.isTestingSignal()"
+          >
+            @if (privateApi.isTestingSignal()) {
+              <ion-spinner name="crescent" class="diag-spinner"></ion-spinner>
+              Testing...
+            } @else {
+              <ion-icon name="pulse-outline" slot="start"></ion-icon>
+              Run API Check
+            }
+          </ion-button>
+        </div>
+
+        @let diag = privateApi.lastDiagnosticSignal();
+        @if (diag) {
+          <div class="diag-grid">
+            <div class="diag-item">
+              <span class="diag-label">API Reachability (<code>GET /api/health</code>):</span>
+              <span class="diag-val" [class.ok]="diag.apiReachable" [class.err]="!diag.apiReachable">
+                {{ diag.apiReachable ? 'Reachable (HTTP 200 OK)' : 'Unreachable' }}
+              </span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-label">Token Verification (<code>GET /api/auth/me</code>):</span>
+              <span class="diag-val" [class.ok]="diag.tokenVerificationStatus === 'verified'" [class.err]="diag.tokenVerificationStatus !== 'verified'">
+                {{ diag.tokenVerificationStatus }} (HTTP {{ diag.httpStatusCode ?? 'N/A' }})
+              </span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-label">Authenticated User Display Name:</span>
+              <span class="diag-val">{{ diag.authenticatedUser?.displayName || 'None (Signed Out)' }}</span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-label">Email Verification Status:</span>
+              <span class="diag-val">
+                {{ diag.authenticatedUser ? (diag.authenticatedUser.emailVerified ? 'Verified' : 'Unverified') : 'N/A' }}
+              </span>
+            </div>
+            @if (diag.healthData) {
+              <div class="diag-item">
+                <span class="diag-label">Firebase Admin Backend Credentials:</span>
+                <span class="diag-val">
+                  {{ diag.healthData.firebaseAdmin.connectionValidated ? 'Validated' : 'Blocked — Missing Server Credentials' }}
+                </span>
+              </div>
+            }
+          </div>
+          <div class="service-note-box" style="margin-top: 10px;">
+            <span class="note-label">API Response Message:</span>
+            <span class="note-val">{{ diag.message }}</span>
+          </div>
+        }
+      </ion-card-content>
+    </ion-card>
+
     <!-- Service Grid -->
-    <div class="services-list">
+    <div class="services-list" style="margin-top: 12px;">
       @for (svc of services; track svc.name) {
         <ion-card class="service-card">
           <ion-card-content>

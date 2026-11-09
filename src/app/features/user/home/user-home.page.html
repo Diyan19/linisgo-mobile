@@ -1,12 +1,28 @@
 <ion-content [fullscreen]="true" class="ion-padding page-content">
   <div class="content-wrapper">
+    @if (adminAccessDeniedNotice) {
+      <div class="admin-denied-banner" role="alert">
+        <ion-icon name="lock-closed-outline"></ion-icon>
+        <div>
+          <strong>Administrator Route Access Restricted:</strong> Regular Firebase User accounts cannot access <code>/admin/*</code> routes. Administrator authorization requires trusted backend Custom Claims verification (Task 1.1).
+        </div>
+      </div>
+    }
+
     <!-- Welcome Header Card -->
     <div class="user-hero-card">
       <span class="greeting-subtitle">Welcome back,</span>
-      <h1 class="user-greeting">{{ dataService.currentUser()?.name || 'Juan Dela Cruz' }}!</h1>
+      <h1 class="user-greeting">{{ dataService.currentUser()?.name || authService.currentUserDisplayName() }}!</h1>
       <div class="user-tag-row">
         <ion-badge color="secondary" class="tag-badge">{{ userTagLabel }} tag</ion-badge>
+        <ion-badge [color]="authService.isEmailVerified() ? 'success' : 'warning'" class="tag-badge">
+          {{ authService.isEmailVerified() ? '✓ Email Verified' : 'Email Unverified' }}
+        </ion-badge>
         <span class="tag-clarification">Descriptive tag · Full dual-access enabled</span>
+      </div>
+      <div class="fb-session-strip">
+        <span>Signed in as <strong>{{ authService.currentUserEmail() }}</strong></span>
+        <a routerLink="/user/settings" class="verify-link">Account Settings & API Diagnostic ›</a>
       </div>
       <p class="hero-explanation">
         One account lets you request and offer household cleaning services across Oriental Mindoro — regardless of your profile tag.

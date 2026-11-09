@@ -11,29 +11,80 @@
   <div class="content-wrapper">
     <div class="reg-header">
       <h1 class="page-title">Join LinisGo Finder</h1>
-      <p class="page-subtitle">One account allows you to both request and offer cleaning services in Oriental Mindoro.</p>
+      <p class="page-subtitle">
+        One regular user account allows you to both request and offer cleaning services in Oriental Mindoro.
+      </p>
     </div>
 
-    <div class="notice-box">
-      <b>Registration Preview:</b> In this Phase, user registration preview is enabled. Real Firebase Authentication signups will be active in the upcoming Firebase integration phase.
+    <!-- Firebase Project & Web SDK Connection Status Card -->
+    <div class="firebase-status-box" [class.needs-key]="!authService.firebaseApiKeyConfigured()">
+      <div class="fb-status-top">
+        <div class="fb-title-group">
+          <ion-icon name="shield-checkmark-outline"></ion-icon>
+          <span>Firebase Auth: <b>{{ projectSummary.projectId }}</b></span>
+        </div>
+        <ion-badge [color]="authService.firebaseApiKeyConfigured() ? 'success' : 'warning'">
+          {{ authService.firebaseApiKeyConfigured() ? 'Web SDK Ready' : 'Web API Key Required' }}
+        </ion-badge>
+      </div>
+      <div class="fb-meta-text">
+        New accounts are created as regular users via <code>createUserWithEmailAndPassword()</code>. Persistent Firestore profile storage will be connected via the Private REST API in Task 1.1.
+      </div>
+
+      @if (!authService.firebaseApiKeyConfigured() || showConfigEditor) {
+        <div class="fb-config-editor">
+          <label for="reg-fb-api-key-input" class="config-label">
+            Paste Public Firebase Web API Key (<code>AIza...</code>) or <code>firebaseConfig</code> for <b>linisgo-mobile</b>:
+          </label>
+          <input
+            id="reg-fb-api-key-input"
+            type="text"
+            [value]="firebaseConfigInput"
+            (input)="firebaseConfigInput = $any($event.target).value"
+            placeholder="AIzaSy... or full firebaseConfig snippet"
+            class="config-raw-input"
+          />
+          <div class="config-actions">
+            <ion-button size="small" color="primary" (click)="onApplyFirebaseConfig()">
+              Save Web API Key
+            </ion-button>
+            @if (authService.firebaseApiKeyConfigured()) {
+              <ion-button size="small" fill="clear" color="medium" (click)="showConfigEditor = false">
+                Cancel
+              </ion-button>
+            }
+          </div>
+          @if (configFeedback) {
+            <div class="config-feedback">{{ configFeedback }}</div>
+          }
+        </div>
+      } @else {
+        <div class="fb-config-toggle-row">
+          <button type="button" class="text-btn" (click)="showConfigEditor = true">
+            Update Web API Key ›
+          </button>
+        </div>
+      }
     </div>
 
     <ion-card class="form-card">
       <ion-card-content>
         <div class="form-field">
-          <label>Display Name</label>
+          <label for="reg-display-name">Display Name *</label>
           <ion-input
+            id="reg-display-name"
             type="text"
-            [value]="name"
-            placeholder="Your full name"
+            [value]="displayName"
+            placeholder="Your full name (e.g., Maria Santos)"
             class="custom-input"
-            (ionInput)="name = $event.detail.value || ''"
+            (ionInput)="displayName = $event.detail.value || ''"
           ></ion-input>
         </div>
 
         <div class="form-field">
-          <label>Email Address</label>
+          <label for="reg-email">Email Address *</label>
           <ion-input
+            id="reg-email"
             type="email"
             [value]="email"
             placeholder="name@example.com"
@@ -43,22 +94,73 @@
         </div>
 
         <div class="form-field">
-          <label>Password</label>
-          <ion-input
-            type="password"
-            [value]="password"
-            placeholder="Create password"
-            class="custom-input"
-            (ionInput)="password = $event.detail.value || ''"
-          ></ion-input>
+          <label for="reg-password">Password * (min. 6 characters)</label>
+          <div class="password-input-wrap">
+            <ion-input
+              id="reg-password"
+              [type]="showPassword ? 'text' : 'password'"
+              [value]="password"
+              placeholder="Create password"
+              class="custom-input"
+              (ionInput)="password = $event.detail.value || ''"
+            ></ion-input>
+            <button
+              type="button"
+              class="pw-toggle-btn"
+              (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+            >
+              <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="reg-confirm-password">Confirm Password *</label>
+          <div class="password-input-wrap">
+            <ion-input
+              id="reg-confirm-password"
+              [type]="showConfirmPassword ? 'text' : 'password'"
+              [value]="confirmPassword"
+              placeholder="Re-enter your password"
+              class="custom-input"
+              (ionInput)="confirmPassword = $event.detail.value || ''"
+            ></ion-input>
+            <button
+              type="button"
+              class="pw-toggle-btn"
+              (click)="showConfirmPassword = !showConfirmPassword"
+              [attr.aria-label]="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'"
+            >
+              <ion-icon [name]="showConfirmPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </button>
+          </div>
         </div>
 
         @if (feedback) {
-          <div class="feedback-box">{{ feedback }}</div>
+          <div
+            class="feedback-box"
+            [class.error]="feedbackType === 'error'"
+            [class.success]="feedbackType === 'success'"
+            role="alert"
+          >
+            {{ feedback }}
+          </div>
         }
 
-        <ion-button expand="block" color="primary" class="submit-btn" (click)="onRegister()">
-          Create Demo Account
+        <ion-button
+          expand="block"
+          color="primary"
+          class="submit-btn"
+          [disabled]="isSubmitting"
+          (click)="onRegister()"
+        >
+          @if (isSubmitting) {
+            <ion-spinner name="crescent" class="btn-spinner"></ion-spinner>
+            <span>Creating Firebase Account...</span>
+          } @else {
+            <span>Create Account</span>
+          }
         </ion-button>
 
         <div class="login-redirect">

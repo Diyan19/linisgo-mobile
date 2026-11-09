@@ -4,6 +4,32 @@
   padding-bottom: 2rem;
 }
 
+.admin-denied-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+
+  ion-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  code {
+    background: #fee2e2;
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+}
+
 .user-hero-card {
   background: #f5f7f8;
   border: 1px solid #d3dce2;
@@ -29,9 +55,10 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 8px;
+    flex-wrap: wrap;
 
     .tag-badge {
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       padding: 4px 8px;
       font-weight: 700;
     }
@@ -39,6 +66,34 @@
     .tag-clarification {
       font-size: 0.72rem;
       color: #7b8891;
+    }
+  }
+
+  .fb-session-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: #ffffff;
+    border: 1px solid #dbe2e8;
+    border-radius: 9px;
+    padding: 7px 10px;
+    margin-bottom: 9px;
+    font-size: 0.75rem;
+    color: #334155;
+
+    code {
+      background: #f1f5f9;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+    }
+
+    .verify-link {
+      color: #2563eb;
+      font-weight: 700;
+      text-decoration: none;
     }
   }
 

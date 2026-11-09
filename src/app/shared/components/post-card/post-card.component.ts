@@ -97,7 +97,7 @@ export class PostCardComponent {
   }
 
   get isOwnPost(): boolean {
-    return this.authService.isLoggedIn() && this.post().authorId === 'demo';
+    return this.authService.isLoggedIn() && this.post().authorId === this.dataService.activeActorId();
   }
 
   toggleSave(): void {

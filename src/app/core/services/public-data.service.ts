@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { CleaningPost, PostCategory, PostStatus, PostType } from '../../shared/models/post.model';
 import { UserProfile, UserProfileTag, SuspensionType, UserAccountState } from '../../shared/models/user.model';
 import { ReportItem, AppealItem, ReportReason, ReportStatus, AppealStatus } from '../../shared/models/report.model';
@@ -11,6 +11,7 @@ import {
   getPostLocationSummary,
   isValidLocationId,
 } from '../../shared/models/location.model';
+import { AuthService } from './auth.service';
 
 export interface InAppNotification {
   id: string;
@@ -33,6 +34,7 @@ export interface MapAreaSummary {
 })
 export class PublicDataService {
   private readonly STORAGE_DATA_KEY = 'linisgo_data_v3';
+  private readonly authService = inject(AuthService);
 
   readonly locations = ORIENTAL_MINDORO_LOCATIONS;
 
@@ -41,6 +43,8 @@ export class PublicDataService {
   readonly postsSignal = signal<CleaningPost[]>([]);
   readonly savedPostsSignal = signal<string[]>([]);
   readonly savedUsersSignal = signal<string[]>([]);
+  private readonly userSavedPostsMapSignal = signal<Record<string, string[]>>({});
+  private readonly userSavedUsersMapSignal = signal<Record<string, string[]>>({});
   readonly notificationsSignal = signal<InAppNotification[]>([]);
   readonly reportsSignal = signal<ReportItem[]>([]);
   readonly appealsSignal = signal<AppealItem[]>([]);
@@ -58,9 +62,25 @@ export class PublicDataService {
   readonly maxPriceFilter = signal<number | null>(null);
   readonly selectedSort = signal<'newest' | 'price-asc'>('newest');
 
-  // Currently logged in demo user
+  /**
+   * Active actor ID:
+   * - Real Firebase UID when signed in via Firebase Authentication (never 'demo').
+   * - Falls back to 'demo' only when no real Firebase user session is active.
+   */
+  readonly activeActorId = computed<string>(() => {
+    const fbUser = this.authService.firebaseUser();
+    return fbUser ? fbUser.uid : 'demo';
+  });
+
+  readonly isMockActor = computed<boolean>(() => {
+    const id = this.activeActorId();
+    return ['demo', 'ana', 'ben', 'mira', 'carlos'].includes(id);
+  });
+
+  // Currently active user profile (local session state; real Firestore profile storage belongs to Task 1.1)
   readonly currentUser = computed(() => {
-    return this.usersSignal().find(u => u.id === 'demo');
+    const actorId = this.activeActorId();
+    return this.usersSignal().find(u => u.id === actorId);
   });
 
   // Active public posts (unmoderated and active author, not archived/draft)
@@ -195,23 +215,41 @@ export class PublicDataService {
     return uniquePostIds.size;
   });
 
-  // Demo user specific signals
+  // Active user specific signals (scoped to activeActorId so real Firebase users do not inherit mock 'demo' records)
   readonly myPosts = computed(() => {
-    return this.postsSignal().filter(p => p.authorId === 'demo');
+    const actorId = this.activeActorId();
+    return this.postsSignal().filter(p => p.authorId === actorId);
+  });
+
+  readonly activeSavedPostIds = computed<string[]>(() => {
+    const actorId = this.activeActorId();
+    if (actorId === 'demo') {
+      return this.savedPostsSignal();
+    }
+    return this.userSavedPostsMapSignal()[actorId] || [];
+  });
+
+  readonly activeSavedUserIds = computed<string[]>(() => {
+    const actorId = this.activeActorId();
+    if (actorId === 'demo') {
+      return this.savedUsersSignal();
+    }
+    return this.userSavedUsersMapSignal()[actorId] || [];
   });
 
   readonly mySavedPosts = computed(() => {
-    const ids = new Set(this.savedPostsSignal());
+    const ids = new Set(this.activeSavedPostIds());
     return this.postsSignal().filter(p => ids.has(p.id) && !p.moderated);
   });
 
   readonly mySavedUsers = computed(() => {
-    const ids = new Set(this.savedUsersSignal());
+    const ids = new Set(this.activeSavedUserIds());
     return this.usersSignal().filter(u => ids.has(u.id) && u.state === 'active');
   });
 
   readonly myNotifications = computed(() => {
-    return this.notificationsSignal().filter(n => n.recipientId === 'demo');
+    const actorId = this.activeActorId();
+    return this.notificationsSignal().filter(n => n.recipientId === actorId);
   });
 
   readonly unreadNotificationsCount = computed(() => {
@@ -219,11 +257,13 @@ export class PublicDataService {
   });
 
   readonly myReports = computed(() => {
-    return this.reportsSignal().filter(r => r.reporterId === 'demo');
+    const actorId = this.activeActorId();
+    return this.reportsSignal().filter(r => r.reporterId === actorId);
   });
 
   readonly myAppeals = computed(() => {
-    return this.appealsSignal().filter(a => a.appellantId === 'demo');
+    const actorId = this.activeActorId();
+    return this.appealsSignal().filter(a => a.appellantId === actorId);
   });
 
   // Admin specific computed statistics
@@ -249,6 +289,53 @@ export class PublicDataService {
 
   constructor() {
     this.loadInitialData();
+
+    // Ensure real Firebase users get a clean, isolated local session profile using their Firebase UID
+    // without inheriting mock 'demo' posts, saved items, reports, or appeals.
+    effect(
+      () => {
+        const fbUser = this.authService.firebaseUser();
+        if (!fbUser) return;
+
+        const uid = fbUser.uid;
+        const displayName = fbUser.displayName?.trim() || fbUser.email?.split('@')[0] || 'LinisGo Member';
+        const existing = this.usersSignal().find(u => u.id === uid);
+
+        if (!existing) {
+          const today = new Date().toISOString().slice(0, 10);
+          const newProfile: UserProfile = {
+            id: uid,
+            name: displayName,
+            tag: 'client',
+            bio: 'Authenticated LinisGo Finder community member in Oriental Mindoro (Local Demo Profile — Firestore sync in Task 1.1).',
+            contactPhone: '',
+            contactFacebook: '',
+            showPhone: false,
+            showFacebook: false,
+            mapConsent: false,
+            approxLocation: { lat: 13.4115, lng: 121.1803, label: 'Calapan City (Capital)' },
+            available: true,
+            state: 'active',
+            warningCount: 0,
+            createdAt: today,
+            updatedAt: today,
+          };
+          this.usersSignal.update(list => [newProfile, ...list]);
+          this.addNotificationForUser(
+            uid,
+            'Authenticated via Firebase Auth',
+            `Welcome, ${displayName}! Your session is authenticated with Firebase UID (${uid.slice(0, 8)}...). Posts and profile edits currently use the local demo store until Task 1.1 Private REST API integration.`
+          );
+          this.persist();
+        } else if (fbUser.displayName && existing.name !== fbUser.displayName && existing.name === fbUser.email?.split('@')[0]) {
+          this.usersSignal.update(list =>
+            list.map(u => (u.id === uid ? { ...u, name: fbUser.displayName!.trim() } : u))
+          );
+          this.persist();
+        }
+      },
+      { allowSignalWrites: true }
+    );
   }
 
   private normalizeExistingPosts(rawPosts: any[]): CleaningPost[] {
@@ -328,6 +415,8 @@ export class PublicDataService {
       this.postsSignal.set(this.normalizeExistingPosts(saved.posts));
       this.savedPostsSignal.set(saved.savedPosts || []);
       this.savedUsersSignal.set(saved.savedUsers || []);
+      this.userSavedPostsMapSignal.set(saved.userSavedPostsMap || {});
+      this.userSavedUsersMapSignal.set(saved.userSavedUsersMap || {});
       this.notificationsSignal.set(saved.notifications || []);
       this.reportsSignal.set(saved.reports || []);
       this.appealsSignal.set(saved.appeals || []);
@@ -346,6 +435,8 @@ export class PublicDataService {
         posts: this.postsSignal(),
         savedPosts: this.savedPostsSignal(),
         savedUsers: this.savedUsersSignal(),
+        userSavedPostsMap: this.userSavedPostsMapSignal(),
+        userSavedUsersMap: this.userSavedUsersMapSignal(),
         notifications: this.notificationsSignal(),
         reports: this.reportsSignal(),
         appeals: this.appealsSignal(),
@@ -751,10 +842,11 @@ export class PublicDataService {
         : [];
     const cleanAreaDesc = data.optionalPublicAreaDescription?.trim() || null;
 
+    const actorId = this.activeActorId();
     const newPost: CleaningPost = {
       id: 'p-' + Math.random().toString(36).slice(2, 8),
-      authorId: 'demo',
-      authorName: user?.name || 'Juan Dela Cruz',
+      authorId: actorId,
+      authorName: user?.name || this.authService.currentUserDisplayName() || 'LinisGo User',
       authorTag: user?.tag || 'client',
       type: data.type,
       title: data.title,
@@ -1008,9 +1100,10 @@ export class PublicDataService {
 
   // --- User Profile & Setting Operations ---
   toggleUserTag(): void {
+    const actorId = this.activeActorId();
     this.usersSignal.update(users =>
       users.map(u => {
-        if (u.id === 'demo') {
+        if (u.id === actorId) {
           const newTag: UserProfileTag = u.tag === 'client' ? 'provider' : 'client';
           return { ...u, tag: newTag, updatedAt: new Date().toISOString().slice(0, 10) };
         }
@@ -1020,7 +1113,7 @@ export class PublicDataService {
     const newTag = this.currentUser()?.tag;
     if (newTag) {
       this.postsSignal.update(posts =>
-        posts.map(p => (p.authorId === 'demo' ? { ...p, authorTag: newTag } : p))
+        posts.map(p => (p.authorId === actorId ? { ...p, authorTag: newTag } : p))
       );
     }
     this.persist();
@@ -1033,9 +1126,10 @@ export class PublicDataService {
     contactFacebook?: string;
     available?: boolean;
   }): void {
+    const actorId = this.activeActorId();
     this.usersSignal.update(users =>
       users.map(u => {
-        if (u.id === 'demo') {
+        if (u.id === actorId) {
           return { ...u, ...data, updatedAt: new Date().toISOString().slice(0, 10) };
         }
         return u;
@@ -1043,8 +1137,11 @@ export class PublicDataService {
     );
     if (data.name) {
       this.postsSignal.update(posts =>
-        posts.map(p => (p.authorId === 'demo' ? { ...p, authorName: data.name! } : p))
+        posts.map(p => (p.authorId === actorId ? { ...p, authorName: data.name! } : p))
       );
+      if (this.authService.isAuthenticatedUser()) {
+        this.authService.updateFirebaseDisplayName(data.name);
+      }
     }
     this.persist();
   }
@@ -1055,9 +1152,10 @@ export class PublicDataService {
     mapConsent?: boolean;
     approxLocation?: { lat: number; lng: number; label?: string };
   }): void {
+    const actorId = this.activeActorId();
     this.usersSignal.update(users =>
       users.map(u => {
-        if (u.id === 'demo') {
+        if (u.id === actorId) {
           return { ...u, ...data, updatedAt: new Date().toISOString().slice(0, 10) };
         }
         return u;
@@ -1067,77 +1165,113 @@ export class PublicDataService {
   }
 
   deactivateAccount(): void {
+    const actorId = this.activeActorId();
     this.usersSignal.update(users =>
-      users.map(u => (u.id === 'demo' ? { ...u, state: 'deactivated', mapConsent: false } : u))
+      users.map(u => (u.id === actorId ? { ...u, state: 'deactivated', mapConsent: false } : u))
     );
     this.persist();
   }
 
   reactivateAccount(): void {
+    const actorId = this.activeActorId();
     const user = this.currentUser();
     // Do not allow suspended user to self-reactivate!
     if (user && user.state === 'suspended') {
       return;
     }
     this.usersSignal.update(users =>
-      users.map(u => (u.id === 'demo' ? { ...u, state: 'active' } : u))
+      users.map(u => (u.id === actorId ? { ...u, state: 'active' } : u))
     );
     this.persist();
   }
 
   deleteAccountSimulated(): void {
-    this.postsSignal.update(posts => posts.filter(p => p.authorId !== 'demo'));
-    this.savedPostsSignal.set([]);
-    this.savedUsersSignal.set([]);
-    this.reportsSignal.update(r => r.filter(x => x.reporterId !== 'demo'));
-    this.appealsSignal.update(a => a.filter(x => x.appellantId !== 'demo'));
-    this.notificationsSignal.update(n => n.filter(x => x.recipientId !== 'demo'));
+    const actorId = this.activeActorId();
+    this.postsSignal.update(posts => posts.filter(p => p.authorId !== actorId));
+    if (actorId === 'demo') {
+      this.savedPostsSignal.set([]);
+      this.savedUsersSignal.set([]);
+    } else {
+      this.userSavedPostsMapSignal.update(m => ({ ...m, [actorId]: [] }));
+      this.userSavedUsersMapSignal.update(m => ({ ...m, [actorId]: [] }));
+    }
+    this.reportsSignal.update(r => r.filter(x => x.reporterId !== actorId));
+    this.appealsSignal.update(a => a.filter(x => x.appellantId !== actorId));
+    this.notificationsSignal.update(n => n.filter(n => n.recipientId !== actorId));
     this.usersSignal.update(users =>
-      users.map(u => (u.id === 'demo' ? { ...u, state: 'deleted', mapConsent: false } : u))
+      users.map(u => (u.id === actorId ? { ...u, state: 'deleted', mapConsent: false } : u))
     );
     this.persist();
   }
 
   // --- Bookmarks / Saved Items ---
   isPostSaved(postId: string): boolean {
-    return this.savedPostsSignal().includes(postId);
+    return this.activeSavedPostIds().includes(postId);
   }
 
   toggleSavePost(postId: string): boolean {
+    const actorId = this.activeActorId();
     let saved = false;
-    this.savedPostsSignal.update(ids => {
-      if (ids.includes(postId)) {
-        saved = false;
-        return ids.filter(id => id !== postId);
-      } else {
-        saved = true;
-        return [postId, ...ids];
-      }
-    });
+    if (actorId === 'demo') {
+      this.savedPostsSignal.update(ids => {
+        if (ids.includes(postId)) {
+          saved = false;
+          return ids.filter(id => id !== postId);
+        } else {
+          saved = true;
+          return [postId, ...ids];
+        }
+      });
+    } else {
+      this.userSavedPostsMapSignal.update(map => {
+        const current = map[actorId] || [];
+        if (current.includes(postId)) {
+          saved = false;
+          return { ...map, [actorId]: current.filter(id => id !== postId) };
+        } else {
+          saved = true;
+          return { ...map, [actorId]: [postId, ...current] };
+        }
+      });
+    }
     this.persist();
     return saved;
   }
 
   isUserSaved(userId: string): boolean {
-    return this.savedUsersSignal().includes(userId);
+    return this.activeSavedUserIds().includes(userId);
   }
 
   toggleSaveUser(userId: string): boolean {
+    const actorId = this.activeActorId();
     let saved = false;
-    this.savedUsersSignal.update(ids => {
-      if (ids.includes(userId)) {
-        saved = false;
-        return ids.filter(id => id !== userId);
-      } else {
-        saved = true;
-        return [userId, ...ids];
-      }
-    });
+    if (actorId === 'demo') {
+      this.savedUsersSignal.update(ids => {
+        if (ids.includes(userId)) {
+          saved = false;
+          return ids.filter(id => id !== userId);
+        } else {
+          saved = true;
+          return [userId, ...ids];
+        }
+      });
+    } else {
+      this.userSavedUsersMapSignal.update(map => {
+        const current = map[actorId] || [];
+        if (current.includes(userId)) {
+          saved = false;
+          return { ...map, [actorId]: current.filter(id => id !== userId) };
+        } else {
+          saved = true;
+          return { ...map, [actorId]: [userId, ...current] };
+        }
+      });
+    }
     this.persist();
     return saved;
   }
 
-  // --- In-App Notifications for Demo User ---
+  // --- In-App Notifications for Active User ---
   markNotificationRead(id: string): void {
     this.notificationsSignal.update(list =>
       list.map(n => (n.id === id ? { ...n, read: true } : n))
@@ -1153,14 +1287,16 @@ export class PublicDataService {
   }
 
   markAllNotificationsRead(): void {
+    const actorId = this.activeActorId();
     this.notificationsSignal.update(list =>
-      list.map(n => (n.recipientId === 'demo' ? { ...n, read: true } : n))
+      list.map(n => (n.recipientId === actorId ? { ...n, read: true } : n))
     );
     this.persist();
   }
 
   addNotification(title: string, detail: string): void {
-    this.addNotificationForUser('demo', title, detail);
+    const actorId = this.activeActorId();
+    this.addNotificationForUser(actorId, title, detail);
   }
 
   // --- Reports & Report Moderation ---
@@ -1170,9 +1306,10 @@ export class PublicDataService {
     reason: ReportReason;
     explanation: string;
   }): ReportItem {
+    const actorId = this.activeActorId();
     const report: ReportItem = {
       id: 'rep-' + Math.random().toString(36).slice(2, 8),
-      reporterId: 'demo',
+      reporterId: actorId,
       targetType: data.targetType,
       targetId: data.targetId,
       reason: data.reason,
@@ -1271,9 +1408,10 @@ export class PublicDataService {
     targetId: string;
     explanation: string;
   }): AppealItem {
+    const actorId = this.activeActorId();
     const appeal: AppealItem = {
       id: 'app-' + Math.random().toString(36).slice(2, 8),
-      appellantId: 'demo',
+      appellantId: actorId,
       targetType: data.targetType,
       targetId: data.targetId,
       explanation: data.explanation,

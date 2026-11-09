@@ -5,6 +5,7 @@ import {
   IonButton,
   IonBadge,
   IonIcon,
+  IonSpinner,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -17,6 +18,10 @@ import {
   settingsOutline,
   logOutOutline,
   swapHorizontalOutline,
+  mailOutline,
+  refreshOutline,
+  checkmarkCircleOutline,
+  alertCircleOutline,
 } from 'ionicons/icons';
 import { AuthService } from '../../../core/services/auth.service';
 import { PublicDataService } from '../../../core/services/public-data.service';
@@ -32,6 +37,7 @@ import { PublicDataService } from '../../../core/services/public-data.service';
     IonButton,
     IonBadge,
     IonIcon,
+    IonSpinner,
   ],
 })
 export class UserProfileHomePage {
@@ -39,6 +45,10 @@ export class UserProfileHomePage {
   readonly dataService = inject(PublicDataService);
 
   tagChangeToast = '';
+  verificationToast = '';
+  verificationToastIsError = false;
+  isSendingVerification = false;
+  isRefreshingVerification = false;
 
   constructor() {
     addIcons({
@@ -51,6 +61,10 @@ export class UserProfileHomePage {
       settingsOutline,
       logOutOutline,
       swapHorizontalOutline,
+      mailOutline,
+      refreshOutline,
+      checkmarkCircleOutline,
+      alertCircleOutline,
     });
   }
 
@@ -59,7 +73,7 @@ export class UserProfileHomePage {
   }
 
   get userInitial(): string {
-    return (this.user?.name || '?').charAt(0).toUpperCase();
+    return (this.user?.name || this.authService.currentUserDisplayName() || '?').charAt(0).toUpperCase();
   }
 
   get tagLabel(): string {
@@ -78,7 +92,27 @@ export class UserProfileHomePage {
     }, 3500);
   }
 
-  onLogout(): void {
-    this.authService.logout();
+  async onResendVerification(): Promise<void> {
+    this.verificationToast = '';
+    this.verificationToastIsError = false;
+    this.isSendingVerification = true;
+    const res = await this.authService.sendVerificationEmail();
+    this.isSendingVerification = false;
+    this.verificationToast = res.message;
+    this.verificationToastIsError = !res.success;
+  }
+
+  async onRefreshVerification(): Promise<void> {
+    this.verificationToast = '';
+    this.verificationToastIsError = false;
+    this.isRefreshingVerification = true;
+    const res = await this.authService.reloadCurrentUser();
+    this.isRefreshingVerification = false;
+    this.verificationToast = res.message;
+    this.verificationToastIsError = !res.success;
+  }
+
+  async onLogout(): Promise<void> {
+    await this.authService.logout();
   }
 }

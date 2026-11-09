@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   IonHeader,
@@ -11,7 +11,9 @@ import {
   IonCardContent,
   IonInput,
   IonButton,
+  IonSpinner,
 } from '@ionic/angular/standalone';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-auth-forgot-password',
@@ -30,13 +32,42 @@ import {
     IonCardContent,
     IonInput,
     IonButton,
+    IonSpinner,
   ],
 })
 export class ForgotPasswordPage {
-  email = '';
-  feedback = '';
+  readonly authService = inject(AuthService);
 
-  onReset(): void {
-    this.feedback = 'Reset link preview: in the Firebase integration phase, Firebase Authentication will send a real password reset email.';
+  email = '';
+  isSubmitting = false;
+  feedback = '';
+  feedbackType: 'error' | 'success' | 'info' = 'info';
+
+  private isValidEmail(email: string): boolean {
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+  }
+
+  async onReset(): Promise<void> {
+    this.feedback = '';
+    const cleanEmail = this.email.trim();
+
+    if (!cleanEmail) {
+      this.feedbackType = 'error';
+      this.feedback = 'Please enter your email address.';
+      return;
+    }
+
+    if (!this.isValidEmail(cleanEmail)) {
+      this.feedbackType = 'error';
+      this.feedback = 'Please enter a valid email address format (e.g., name@example.com).';
+      return;
+    }
+
+    this.isSubmitting = true;
+    const result = await this.authService.requestPasswordReset(cleanEmail);
+    this.isSubmitting = false;
+
+    this.feedbackType = result.success ? 'success' : 'error';
+    this.feedback = result.message;
   }
 }

@@ -10,13 +10,262 @@
 <ion-content [fullscreen]="true" class="ion-padding page-content">
   <div class="content-wrapper">
     <div class="header-intro">
-      <h1 class="page-title">Privacy & Preferences</h1>
-      <p class="page-subtitle">Control how your contact avenues and geographic markers are shared.</p>
+      <h1 class="page-title">Security, Privacy & Preferences</h1>
+      <p class="page-subtitle">Manage your Firebase Authentication credentials, verify Private REST API connectivity, and configure privacy preferences.</p>
     </div>
 
     @if (feedbackMessage) {
       <div class="toast-alert">{{ feedbackMessage }}</div>
     }
+
+    <!-- Section 0A: Real Firebase Account & Email Verification (Task 1.0 Part 9) -->
+    <div class="settings-card firebase-card">
+      <div class="card-title-row">
+        <ion-icon name="shield-checkmark-outline" class="sec-icon"></ion-icon>
+        <h2 class="card-title">Firebase Authentication & Email Verification</h2>
+      </div>
+      <p class="card-desc">
+        Connected to Firebase project <strong>linisgo-mobile</strong> (<code>linisgo-mobile.firebaseapp.com</code>).
+      </p>
+
+      <div class="fb-meta-box">
+        <div class="meta-row">
+          <span class="meta-label">Display Name:</span>
+          <span class="meta-val">{{ authService.currentUserDisplayName() }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Email Address:</span>
+          <span class="meta-val">{{ authService.currentUserEmail() || 'Not signed in' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Verification Status:</span>
+          @if (authService.isEmailVerified()) {
+            <ion-badge color="success" class="verify-badge">
+              <ion-icon name="checkmark-circle-outline"></ion-icon>
+              Verified
+            </ion-badge>
+          } @else {
+            <ion-badge color="warning" class="verify-badge">
+              <ion-icon name="alert-circle-outline"></ion-icon>
+              Unverified
+            </ion-badge>
+          }
+        </div>
+      </div>
+
+      @if (verificationFeedback) {
+        <div class="inline-feedback" [class.is-error]="verificationFeedbackIsError">
+          {{ verificationFeedback }}
+        </div>
+      }
+
+      <div class="verify-actions-row">
+        @if (!authService.isEmailVerified()) {
+          <ion-button
+            expand="block"
+            fill="outline"
+            color="primary"
+            (click)="onResendVerification()"
+            [disabled]="isSendingVerification || authService.verificationCooldownSeconds() > 0"
+            class="verify-btn"
+          >
+            @if (isSendingVerification) {
+              <ion-spinner name="crescent" class="btn-spinner"></ion-spinner>
+              Sending...
+            } @else if (authService.verificationCooldownSeconds() > 0) {
+              <ion-icon name="mail-outline" slot="start"></ion-icon>
+              Resend in {{ authService.verificationCooldownSeconds() }}s
+            } @else {
+              <ion-icon name="mail-outline" slot="start"></ion-icon>
+              Resend Verification Email
+            }
+          </ion-button>
+        }
+
+        <ion-button
+          expand="block"
+          fill="clear"
+          color="secondary"
+          (click)="onRefreshVerification()"
+          [disabled]="isRefreshingVerification"
+          class="verify-btn"
+        >
+          @if (isRefreshingVerification) {
+            <ion-spinner name="crescent" class="btn-spinner"></ion-spinner>
+            Checking Firebase...
+          } @else {
+            <ion-icon name="refresh-outline" slot="start"></ion-icon>
+            Refresh Verification Status
+          }
+        </ion-button>
+      </div>
+    </div>
+
+    <!-- Section 0B: Private REST API Authentication Integration Test (Task 1.1 Section 10) -->
+    <div class="settings-card api-diag-card">
+      <div class="card-title-row">
+        <ion-icon name="server-outline" class="sec-icon"></ion-icon>
+        <h2 class="card-title">Private REST API Integration Test</h2>
+        <span class="demo-pill">GET /api/auth/me</span>
+      </div>
+      <p class="card-desc">
+        Tests live communication with the standalone Node.js + Express backend (<code>{{ apiConfig.localDirectBaseUrl }}</code> via <code>{{ apiConfig.baseUrl }}</code>) and attaches your current Firebase ID token via <code>Authorization: Bearer &lt;token&gt;</code>.
+      </p>
+
+      @let diag = privateApi.lastDiagnosticSignal();
+      @if (diag) {
+        <div class="fb-meta-box">
+          <div class="meta-row">
+            <span class="meta-label">API Reachability:</span>
+            <ion-badge [color]="diag.apiReachable ? 'success' : 'danger'" class="verify-badge">
+              {{ diag.apiReachable ? 'Reachable (HTTP 200 /api/health)' : 'Unreachable' }}
+            </ion-badge>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Firebase Token Verification:</span>
+            @if (diag.tokenVerificationStatus === 'verified') {
+              <ion-badge color="success" class="verify-badge">Verified (HTTP 200)</ion-badge>
+            } @else if (diag.tokenVerificationStatus === 'unauthorized_401') {
+              <ion-badge color="danger" class="verify-badge">Rejected — HTTP 401 ({{ diag.errorCode }})</ion-badge>
+            } @else if (diag.tokenVerificationStatus === 'blocked_missing_backend_credentials_503') {
+              <ion-badge color="warning" class="verify-badge">Blocked — Missing Backend Credentials (HTTP 503)</ion-badge>
+            } @else {
+              <ion-badge color="medium" class="verify-badge">{{ diag.tokenVerificationStatus }}</ion-badge>
+            }
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Authenticated Display Name:</span>
+            <span class="meta-val">{{ diag.authenticatedUser?.displayName || authService.currentUserDisplayName() || 'N/A' }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Email Verification Status:</span>
+            <span class="meta-val">
+              {{ (diag.authenticatedUser?.emailVerified ?? authService.isEmailVerified()) ? 'Verified' : 'Unverified' }}
+            </span>
+          </div>
+          @if (diag.healthData) {
+            <div class="meta-row">
+              <span class="meta-label">Backend Admin SDK Status:</span>
+              <code class="meta-code">{{ diag.healthData.firebaseAdmin.status }}</code>
+            </div>
+          }
+        </div>
+
+        <div
+          class="inline-feedback"
+          [class.is-error]="diag.tokenVerificationStatus !== 'verified'"
+        >
+          {{ diag.message }}
+        </div>
+      }
+
+      <ion-button
+        expand="block"
+        fill="outline"
+        color="primary"
+        (click)="onRunApiDiagnostic()"
+        [disabled]="privateApi.isTestingSignal()"
+        class="verify-btn"
+      >
+        @if (privateApi.isTestingSignal()) {
+          <ion-spinner name="crescent" class="btn-spinner"></ion-spinner>
+          Testing GET /api/auth/me...
+        } @else {
+          <ion-icon name="pulse-outline" slot="start"></ion-icon>
+          Test GET /api/auth/me Now
+        }
+      </ion-button>
+
+      <p class="api-diag-disclaimer">
+        <b>Security Boundary Notice:</b> This diagnostic verifies Firebase ID token transport and backend verification status only. It is not proof of administrator authorization or server-side account-state enforcement.
+      </p>
+    </div>
+
+    <!-- Section 0C: Real Firebase Password Update (Task 1.0 Part 9) -->
+    <div class="settings-card">
+      <div class="card-title-row">
+        <ion-icon name="key-outline" class="sec-icon"></ion-icon>
+        <h2 class="card-title">Change Password (Firebase Auth)</h2>
+      </div>
+      <p class="card-desc">
+        Update your Firebase account password. For security, your current password is verified via <code>reauthenticateWithCredential</code> before applying changes.
+      </p>
+
+      @if (passwordFeedback) {
+        <div class="inline-feedback" [class.is-error]="passwordFeedbackIsError">
+          {{ passwordFeedback }}
+        </div>
+      }
+
+      <form [formGroup]="passwordForm" (ngSubmit)="onUpdatePassword()">
+        <div class="pw-field-group">
+          <label for="curr-pw" class="pw-label">Current Password</label>
+          <div class="pw-input-wrap">
+            <input
+              id="curr-pw"
+              [type]="showCurrentPassword ? 'text' : 'password'"
+              formControlName="currentPassword"
+              placeholder="Enter current password"
+              class="pw-input"
+            />
+            <button type="button" class="pw-toggle" (click)="showCurrentPassword = !showCurrentPassword">
+              <ion-icon [name]="showCurrentPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </button>
+          </div>
+          @if (passwordSubmitted && passwordForm.get('currentPassword')?.errors?.['required']) {
+            <span class="pw-err">Current password is required.</span>
+          }
+        </div>
+
+        <div class="pw-field-group">
+          <label for="new-pw" class="pw-label">New Password (min. 6 characters)</label>
+          <div class="pw-input-wrap">
+            <input
+              id="new-pw"
+              [type]="showNewPassword ? 'text' : 'password'"
+              formControlName="newPassword"
+              placeholder="At least 6 characters"
+              class="pw-input"
+            />
+            <button type="button" class="pw-toggle" (click)="showNewPassword = !showNewPassword">
+              <ion-icon [name]="showNewPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </button>
+          </div>
+          @if (passwordSubmitted && passwordForm.get('newPassword')?.errors) {
+            <span class="pw-err">New password must be at least 6 characters.</span>
+          }
+        </div>
+
+        <div class="pw-field-group">
+          <label for="conf-pw" class="pw-label">Confirm New Password</label>
+          <div class="pw-input-wrap">
+            <input
+              id="conf-pw"
+              [type]="showConfirmNewPassword ? 'text' : 'password'"
+              formControlName="confirmNewPassword"
+              placeholder="Re-enter new password"
+              class="pw-input"
+            />
+            <button type="button" class="pw-toggle" (click)="showConfirmNewPassword = !showConfirmNewPassword">
+              <ion-icon [name]="showConfirmNewPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </button>
+          </div>
+          @if (passwordsMismatch || (passwordSubmitted && passwordForm.get('confirmNewPassword')?.errors)) {
+            <span class="pw-err">Confirmation password does not match.</span>
+          }
+        </div>
+
+        <ion-button expand="block" type="submit" color="primary" [disabled]="isUpdatingPassword" class="save-settings-btn">
+          @if (isUpdatingPassword) {
+            <ion-spinner name="crescent" class="btn-spinner"></ion-spinner>
+            Updating Password...
+          } @else {
+            <ion-icon name="key-outline" slot="start"></ion-icon>
+            Update Firebase Password
+          }
+        </ion-button>
+      </form>
+    </div>
 
     <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()">
       <!-- Section 1: Contact Visibility -->
@@ -24,8 +273,9 @@
         <div class="card-title-row">
           <ion-icon name="lock-closed-outline" class="sec-icon"></ion-icon>
           <h2 class="card-title">Contact Visibility</h2>
+          <span class="demo-pill">Local Demo Storage</span>
         </div>
-        <p class="card-desc">Decide which communication methods appear on your public profile and post cards.</p>
+        <p class="card-desc">Decide which communication methods appear on your public profile and post cards (persisted locally until Task 1.2 Firestore integration).</p>
 
         <div class="checkbox-row">
           <ion-checkbox formControlName="showPhone" justify="start">
@@ -45,6 +295,7 @@
         <div class="card-title-row">
           <ion-icon name="map-outline" class="sec-icon"></ion-icon>
           <h2 class="card-title">Map Location Discovery</h2>
+          <span class="demo-pill">Local Demo Storage</span>
         </div>
         <p class="card-desc">
           Privacy Policy Rule: <strong>Map visibility defaults to OFF</strong> and requires explicit consent. Your exact home coordinates are never revealed; only the general municipality center is pinned.
@@ -80,15 +331,16 @@
       </ion-button>
     </form>
 
-    <!-- Section 3: Account State (Active / Deactivated) -->
+    <!-- Section 3: Account State (Active / Deactivated - Local Demo State) -->
     <div class="settings-card manage-card">
       <div class="card-title-row">
         <ion-icon name="settings-outline" class="sec-icon"></ion-icon>
-        <h2 class="card-title">Account Status</h2>
+        <h2 class="card-title">Profile Visibility Status</h2>
+        <span class="demo-pill">Local Demo State</span>
       </div>
 
       <div class="status-summary">
-        <span class="status-label">Current State:</span>
+        <span class="status-label">Current Local State:</span>
         <ion-badge [color]="dataService.currentUser()?.state === 'active' ? 'success' : (dataService.currentUser()?.state === 'suspended' ? 'danger' : 'warning')" class="state-badge">
           {{ dataService.currentUser()?.state }}
         </ion-badge>
@@ -96,7 +348,7 @@
 
       @if (dataService.currentUser()?.state === 'suspended') {
         <p class="card-desc" style="color: #991b1b; font-weight: 600;">
-          Your account has been suspended by an administrator ({{ dataService.currentUser()?.suspensionReason || 'Policy violation' }}). Suspended accounts cannot be self-reactivated.
+          Your local profile has been marked suspended in demo moderation ({{ dataService.currentUser()?.suspensionReason || 'Policy violation' }}).
         </p>
         <ion-button expand="block" color="danger" fill="outline" routerLink="/user/appeal">
           Submit Suspension Appeal
@@ -104,9 +356,9 @@
       } @else {
         <p class="card-desc">
           @if (dataService.currentUser()?.state === 'active') {
-            Temporarily pause your activity. Deactivating your account hides all your posts and removes you from the map.
+            Temporarily pause your local profile activity. Deactivating hides your posts and removes your marker from the map in the local store.
           } @else {
-            Your account is currently paused. Click below to reactivate and restore your profile and posts.
+            Your local profile is currently paused. Click below to reactivate and restore your local profile and posts.
           }
         </p>
 
@@ -119,10 +371,10 @@
         >
           @if (dataService.currentUser()?.state === 'active') {
             <ion-icon name="pause-outline" slot="start"></ion-icon>
-            Deactivate Account
+            Deactivate Local Profile
           } @else {
             <ion-icon name="play-outline" slot="start"></ion-icon>
-            Reactivate Account
+            Reactivate Local Profile
           }
         </ion-button>
       }
@@ -132,23 +384,24 @@
     <div class="settings-card danger-card">
       <div class="card-title-row">
         <ion-icon name="warning-outline" class="sec-icon danger-icon"></ion-icon>
-        <h2 class="card-title danger-title">Danger Zone</h2>
+        <h2 class="card-title danger-title">Local Demo Data Reset</h2>
+        <span class="demo-pill">Local Only</span>
       </div>
       <p class="card-desc">
-        Reset or erase all local demo account data, author posts, saved items, and notifications.
+        Reset or erase local demo posts, saved items, and notifications associated with your current UID in browser storage. (Full server-side Firestore account deletion will be handled in Task 1.2+.)
       </p>
 
       @if (!showDeleteConfirm) {
         <ion-button expand="block" color="danger" fill="outline" (click)="confirmDelete()" class="delete-trigger-btn">
           <ion-icon name="trash-outline" slot="start"></ion-icon>
-          Reset / Delete Demo Account
+          Reset Local Demo Activity
         </ion-button>
       } @else {
         <div class="delete-confirm-box">
-          <p class="confirm-msg">Are you sure? This will clear all posts and activity created by this demo account.</p>
+          <p class="confirm-msg">Are you sure? This will clear all local posts and saved items created by your current UID in local storage.</p>
           <div class="confirm-btn-row">
             <ion-button color="danger" (click)="executeDelete()">
-              Yes, Delete
+              Yes, Reset Local Data
             </ion-button>
             <ion-button color="medium" fill="outline" (click)="cancelDelete()">
               Cancel

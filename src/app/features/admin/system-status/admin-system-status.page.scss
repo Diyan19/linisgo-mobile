@@ -145,3 +145,57 @@
     font-family: monospace;
   }
 }
+
+.diag-panel-card {
+  border-color: #bfdbfe;
+  background: #f8fbff;
+}
+
+.diag-spinner {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+}
+
+.diag-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  padding: 10px 12px;
+
+  .diag-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    padding: 3px 0;
+    border-bottom: 1px dashed #e2e8f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .diag-label {
+      color: #475569;
+      font-weight: 700;
+    }
+
+    .diag-val {
+      font-weight: 700;
+      color: #0f172a;
+
+      &.ok {
+        color: #15803d;
+      }
+
+      &.err {
+        color: #b91c1c;
+      }
+    }
+  }
+}
+
