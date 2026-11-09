@@ -5,12 +5,13 @@ export interface FirebaseWebConfig {
   storageBucket?: string;
   messagingSenderId?: string;
   appId: string;
+  measurementId?: string;
 }
 
 const resolvedGlobalWebApiKey =
-  typeof FIREBASE_WEB_API_KEY !== 'undefined' && typeof FIREBASE_WEB_API_KEY === 'string'
+  typeof FIREBASE_WEB_API_KEY !== 'undefined' && typeof FIREBASE_WEB_API_KEY === 'string' && FIREBASE_WEB_API_KEY.trim()
     ? FIREBASE_WEB_API_KEY.trim()
-    : '';
+    : 'AIzaSyCx2UVgj68cEyJXqNS8iWEd9O1dowIh9_Y';
 
 export const environment = {
   production: false,
@@ -32,6 +33,7 @@ export const environment = {
     storageBucket: 'linisgo-mobile.firebasestorage.app',
     messagingSenderId: '932812492190',
     appId: '1:932812492190:web:20c4c8982f8c6adfa5da8f',
+    measurementId: 'G-PCKYDY09Z1',
   } satisfies FirebaseWebConfig,
   /**
    * Task 1.1 Private REST API Configuration:
