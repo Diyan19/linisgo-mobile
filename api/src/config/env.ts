@@ -155,9 +155,7 @@ export function loadBackendEnv(): BackendEnvConfig {
   }
 
   const firebaseWebApiKey = parsePublicWebApiKey(
-    process.env['FIREBASE_WEB_API_KEY'] ||
-      process.env['FIREBASE_API_KEY'] ||
-      'AIzaSyCx2UVgj68cEyJXqNS8iWEd9O1dowIh9_Y'
+    process.env['FIREBASE_WEB_API_KEY'] || process.env['FIREBASE_API_KEY']
   );
 
   const allowedOrigins = parseAllowedOrigins(process.env['ALLOWED_ORIGINS'], nodeEnv);
