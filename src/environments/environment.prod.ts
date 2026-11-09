@@ -1,10 +1,15 @@
 import { FirebaseWebConfig } from './environment';
 
+const resolvedGlobalWebApiKey =
+  typeof FIREBASE_WEB_API_KEY !== 'undefined' && typeof FIREBASE_WEB_API_KEY === 'string'
+    ? FIREBASE_WEB_API_KEY.trim()
+    : '';
+
 export const environment = {
   production: true,
   appName: 'LinisGo Finder',
   firebase: {
-    apiKey: '',
+    apiKey: resolvedGlobalWebApiKey,
     authDomain: 'linisgo-mobile.firebaseapp.com',
     projectId: 'linisgo-mobile',
     storageBucket: 'linisgo-mobile.firebasestorage.app',

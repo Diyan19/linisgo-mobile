@@ -1,0 +1,131 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================================
+    // 0. GLOBAL DEFAULT-DENY SAFETY NET
+    // ============================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ============================================================================
+    // 1. HARDENED HELPER FUNCTIONS
+    // ============================================================================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Public profile visibility check:
+    // Must be explicitly marked publicVisible == true, visibilityState == 'public',
+    // and authorAccountState == 'active' (excludes deactivated, suspended, and deleting users).
+    function isPubliclyDiscoverableProfile(data) {
+      return data.publicVisible == true
+        && data.visibilityState == 'public'
+        && data.authorAccountState == 'active'
+        && (data.profileTag == 'client' || data.profileTag == 'provider');
+    }
+
+    // Shared post public visibility check:
+    // Separates:
+    // 1. publicationState ('published' vs 'draft')
+    // 2. lifecycleStatus ('open' for request; 'active' for offer — excludes 'closed' and 'archived')
+    // 3. moderationStatus ('none' — posts publish immediately; after-publication 'flagged'/'hidden'/'removed' are excluded)
+    // 4. authorAccountState ('active')
+    function isPubliclyDiscoverablePost(data) {
+      return data.publicVisible == true
+        && data.publicationState == 'published'
+        && data.moderationStatus == 'none'
+        && data.authorAccountState == 'active'
+        && (
+          (data.postType == 'request' && data.lifecycleStatus == 'open') ||
+          (data.postType == 'offer' && data.lifecycleStatus == 'active')
+        );
+    }
+
+    // Opt-in approximate map marker visibility check:
+    // Requires explicit mapConsent == true, publicVisible == true, and active account state.
+    function isPubliclyDiscoverableMapMarker(data) {
+      return data.publicVisible == true
+        && data.mapConsent == true
+        && data.authorAccountState == 'active';
+    }
+
+    // ============================================================================
+    // 2. PUBLIC DISCOVERY COLLECTIONS (READ-ONLY FOR VISIBLE PUBLIC RECORDS)
+    //    All mutations are strictly denied from clients and routed via REST API.
+    // ============================================================================
+
+    // Collection 1: publicProfiles
+    match /publicProfiles/{uid} {
+      allow get: if isValidId(uid) && isPubliclyDiscoverableProfile(existing());
+      allow list: if isPubliclyDiscoverableProfile(existing());
+      allow create, update, delete: if false;
+    }
+
+    // Collection 4: posts (Shared Service Requests & Service Offers)
+    match /posts/{postId} {
+      allow get: if isValidId(postId) && isPubliclyDiscoverablePost(existing());
+      allow list: if isPubliclyDiscoverablePost(existing());
+      allow create, update, delete: if false;
+    }
+
+    // Collection 10: publicMapMarkers (Opt-in approximate municipality markers)
+    match /publicMapMarkers/{uid} {
+      allow get: if isValidId(uid) && isPubliclyDiscoverableMapMarker(existing());
+      allow list: if isPubliclyDiscoverableMapMarker(existing());
+      allow create, update, delete: if false;
+    }
+
+    // ============================================================================
+    // 3. CANONICAL PRIVATE & SERVER-MEDIATED COLLECTIONS (STRICT BROWSER ISOLATION)
+    //    All reads and writes are mediated exclusively by the Private REST API.
+    //    No duplicate subcollections exist under /privateProfiles/{uid}.
+    // ============================================================================
+
+    // Collection 2: privateProfiles (PII, registration email, private contact & map settings)
+    match /privateProfiles/{uid} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    // Collection 3: accountStates (Trusted server-controlled lifecycle, suspension & deletion cleanup)
+    match /accountStates/{uid} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    // Collection 5: savedUsers (Canonical top-level bookmark path: ${ownerUid}_${targetUid})
+    match /savedUsers/{bookmarkId} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    // Collection 6: savedPosts (Canonical top-level bookmark path: ${ownerUid}_${postId})
+    match /savedPosts/{bookmarkId} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    // Collection 7: reports (Private user moderation reports: pending | under_review | resolved | dismissed)
+    match /reports/{reportId} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    // Collection 8: appeals (Private account_suspension & post_hidden appeals)
+    match /appeals/{appealId} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    // Collection 9: notifications (Canonical top-level private in-app notifications)
+    match /notifications/{notificationId} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    // Collection 11: adminAuditLogs (Immutable administrator audit trail)
+    match /adminAuditLogs/{logId} {
+      allow get, list, create, update, delete: if false;
+    }
+  }
+}

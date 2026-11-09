@@ -10,8 +10,19 @@ async function startServer(): Promise<void> {
       `[LinisGo Finder Private API] Listening on http://${envConfig.host}:${envConfig.port}/api (env: ${envConfig.nodeEnv})`
     );
     console.log(
-      `[LinisGo Finder Private API] Firebase Admin Status (${diagnostics.projectId}): ${diagnostics.status}`
+      `[LinisGo Finder Private API] Firebase Status (${diagnostics.projectId}): ${diagnostics.status}`
     );
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(
+        `[LinisGo Finder Private API] Port ${envConfig.port} is already in use by an active API instance.`
+      );
+      process.exit(0);
+    }
+    console.error('[LinisGo Finder Private API] Server error:', err.message);
+    process.exit(1);
   });
 
   const shutdown = (signal: string) => {

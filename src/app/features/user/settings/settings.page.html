@@ -125,6 +125,8 @@
             <span class="meta-label">Firebase Token Verification:</span>
             @if (diag.tokenVerificationStatus === 'verified') {
               <ion-badge color="success" class="verify-badge">Verified (HTTP 200)</ion-badge>
+            } @else if (diag.tokenVerificationStatus === 'sign_in_required') {
+              <ion-badge color="warning" class="verify-badge">Sign in required</ion-badge>
             } @else if (diag.tokenVerificationStatus === 'unauthorized_401') {
               <ion-badge color="danger" class="verify-badge">Rejected — HTTP 401 ({{ diag.errorCode }})</ion-badge>
             } @else if (diag.tokenVerificationStatus === 'blocked_missing_backend_credentials_503') {
@@ -143,10 +145,22 @@
               {{ (diag.authenticatedUser?.emailVerified ?? authService.isEmailVerified()) ? 'Verified' : 'Unverified' }}
             </span>
           </div>
+          @if (diag.uidMatchesFrontendUser !== null) {
+            <div class="meta-row">
+              <span class="meta-label">Returned UID Matches Session:</span>
+              <ion-badge [color]="diag.uidMatchesFrontendUser ? 'success' : 'danger'" class="verify-badge">
+                {{ diag.uidMatchesFrontendUser ? 'Yes (Verified Match)' : 'No' }}
+              </ion-badge>
+            </div>
+          }
           @if (diag.healthData) {
             <div class="meta-row">
-              <span class="meta-label">Backend Admin SDK Status:</span>
-              <code class="meta-code">{{ diag.healthData.firebaseAdmin.status }}</code>
+              <span class="meta-label">Basic ID Token Verification:</span>
+              <code class="meta-code">{{ diag.healthData.capabilities.basicIdTokenVerification }}</code>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Privileged Admin & Revocation:</span>
+              <code class="meta-code">{{ diag.healthData.capabilities.privilegedFirebaseAdminAccess }}</code>
             </div>
           }
         </div>

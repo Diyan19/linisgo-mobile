@@ -28,7 +28,9 @@ export const firebaseAuthInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  return from(authService.getIdToken(false)).pipe(
+  return from(
+    authService.waitForAuthInit().then(() => authService.getIdToken(false))
+  ).pipe(
     switchMap(token => {
       const requestToSend = token
         ? req.clone({

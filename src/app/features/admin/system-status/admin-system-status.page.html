@@ -18,7 +18,7 @@
     <div class="status-notice">
       <ion-icon name="alert-circle-outline"></ion-icon>
       <div class="notice-text">
-        <b>Task 1.1 Scope Status:</b> Standalone Node.js + Express + TypeScript REST API (<code>api/</code>) and Firebase Authentication (<code>linisgo-mobile</code>) are integrated. Cloud Firestore mutations and role promotions remain intentionally deferred until Task 1.2+.
+        <b>Task 1.1 Final Verification Status:</b> Basic Firebase ID token verification (<code>verifyIdToken</code> against Google public signing keys for <code>linisgo-mobile</code>) is WORKING. Privileged Firebase Admin operations (<code>getUser</code>, revocation checks, custom-claim assignment, and server-side Firestore writes) remain BLOCKED until authorized backend credentials are configured.
       </div>
     </div>
 
@@ -27,8 +27,8 @@
       <ion-card-content>
         <div class="service-header">
           <div class="service-title-wrap">
-            <span class="service-category">Live Backend Verification (Task 1.1 Section 10)</span>
-            <h3 class="service-name">Private REST API Diagnostic (<code>GET /api/auth/me</code>)</h3>
+            <span class="service-category">Live Backend Verification (Task 1.1 Section 4 & 10)</span>
+            <h3 class="service-name">Private REST API Readiness & Diagnostic (<code>GET /api/health</code> & <code>GET /api/auth/me</code>)</h3>
           </div>
           <ion-button
             size="small"
@@ -50,15 +50,57 @@
         @if (diag) {
           <div class="diag-grid">
             <div class="diag-item">
-              <span class="diag-label">API Reachability (<code>GET /api/health</code>):</span>
+              <span class="diag-label">1. API Server Reachable (<code>GET /api/health</code>):</span>
               <span class="diag-val" [class.ok]="diag.apiReachable" [class.err]="!diag.apiReachable">
-                {{ diag.apiReachable ? 'Reachable (HTTP 200 OK)' : 'Unreachable' }}
+                {{ diag.apiReachable ? 'Working (HTTP 200 OK)' : 'Blocked / Unreachable' }}
               </span>
             </div>
+            @if (diag.healthData) {
+              <div class="diag-item">
+                <span class="diag-label">2. Firebase Project ID Configured:</span>
+                <span class="diag-val" [class.ok]="diag.healthData.capabilities.firebaseProjectIdConfigured">
+                  {{ diag.healthData.firebaseAdmin.projectId }} ({{ diag.healthData.capabilities.firebaseProjectIdConfigured ? 'Working' : 'Blocked' }})
+                </span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">3. Public Signing Keys Accessible:</span>
+                <span class="diag-val" [class.ok]="diag.healthData.capabilities.publicSigningKeysAccessible" [class.err]="!diag.healthData.capabilities.publicSigningKeysAccessible">
+                  {{ diag.healthData.capabilities.publicSigningKeysAccessible ? 'Working (Google X.509 Certs)' : 'Blocked' }}
+                </span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">4. Basic Real ID Token Verification:</span>
+                <span class="diag-val" [class.ok]="diag.healthData.capabilities.basicIdTokenVerification === 'working'" [class.err]="diag.healthData.capabilities.basicIdTokenVerification !== 'working'">
+                  {{ diag.healthData.capabilities.basicIdTokenVerification === 'working' ? 'Working (verifyIdToken)' : 'Blocked' }}
+                </span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">5. Token Revocation Checking:</span>
+                <span class="diag-val" [class.ok]="diag.healthData.capabilities.tokenRevocationChecking === 'working'" [class.err]="diag.healthData.capabilities.tokenRevocationChecking !== 'working'">
+                  {{ diag.healthData.capabilities.tokenRevocationChecking === 'working' ? 'Working' : 'Blocked (Requires Privileged Credentials)' }}
+                </span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">6. Privileged Firebase Admin Access (<code>getUser</code> / Claims):</span>
+                <span class="diag-val" [class.ok]="diag.healthData.capabilities.privilegedFirebaseAdminAccess === 'working'" [class.err]="diag.healthData.capabilities.privilegedFirebaseAdminAccess !== 'working'">
+                  {{ diag.healthData.capabilities.privilegedFirebaseAdminAccess === 'working' ? 'Working' : 'Blocked (Requires Privileged Credentials)' }}
+                </span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">7. Firestore Server Operations:</span>
+                <span class="diag-val err">
+                  {{ diag.healthData.capabilities.firestoreServerOperations === 'working' ? 'Working' : 'Blocked (Deferred to Task 1.2)' }}
+                </span>
+              </div>
+            }
             <div class="diag-item">
-              <span class="diag-label">Token Verification (<code>GET /api/auth/me</code>):</span>
+              <span class="diag-label">Last <code>GET /api/auth/me</code> Result:</span>
               <span class="diag-val" [class.ok]="diag.tokenVerificationStatus === 'verified'" [class.err]="diag.tokenVerificationStatus !== 'verified'">
-                {{ diag.tokenVerificationStatus }} (HTTP {{ diag.httpStatusCode ?? 'N/A' }})
+                @if (diag.tokenVerificationStatus === 'sign_in_required') {
+                  Sign in required (Skipped while signed out)
+                } @else {
+                  {{ diag.tokenVerificationStatus }} (HTTP {{ diag.httpStatusCode ?? 'N/A' }})
+                }
               </span>
             </div>
             <div class="diag-item">
@@ -71,17 +113,9 @@
                 {{ diag.authenticatedUser ? (diag.authenticatedUser.emailVerified ? 'Verified' : 'Unverified') : 'N/A' }}
               </span>
             </div>
-            @if (diag.healthData) {
-              <div class="diag-item">
-                <span class="diag-label">Firebase Admin Backend Credentials:</span>
-                <span class="diag-val">
-                  {{ diag.healthData.firebaseAdmin.connectionValidated ? 'Validated' : 'Blocked — Missing Server Credentials' }}
-                </span>
-              </div>
-            }
           </div>
           <div class="service-note-box" style="margin-top: 10px;">
-            <span class="note-label">API Response Message:</span>
+            <span class="note-label">API Diagnostic Summary:</span>
             <span class="note-val">{{ diag.message }}</span>
           </div>
         }

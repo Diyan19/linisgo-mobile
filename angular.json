@@ -35,7 +35,10 @@
               "node_modules/leaflet/dist/leaflet.css",
               "src/global.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "allowedCommonJsDependencies": [
+              "leaflet"
+            ]
           },
           "configurations": {
             "production": {
@@ -88,6 +91,14 @@
           "defaultConfiguration": "development"
         }
       }
+    }
+  },
+  "cli": {
+    "analytics": false,
+    "cache": {
+      "enabled": true,
+      "path": ".angular/cache",
+      "environment": "all"
     }
   }
 }

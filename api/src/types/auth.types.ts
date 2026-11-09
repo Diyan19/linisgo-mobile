@@ -2,7 +2,7 @@ import { Request } from 'express';
 
 /**
  * Verified Firebase identity attached to authenticated Express requests.
- * Never populated from unverified client parameters.
+ * Populated exclusively after cryptographic JWT verification via Firebase Admin SDK.
  */
 export interface VerifiedUserIdentity {
   uid: string;
@@ -14,6 +14,7 @@ export interface VerifiedUserIdentity {
     admin?: boolean;
     [key: string]: unknown;
   };
+  verificationMode: 'public_certs_basic' | 'privileged_revocation_checked';
   issuedAt?: number;
   expiresAt?: number;
 }
@@ -27,8 +28,6 @@ export interface AuthenticatedRequest extends Request {
 
 /**
  * Dependency-injection contract for verifying Firebase ID tokens.
- * Enables isolated middleware unit testing with test doubles while using
- * Firebase Admin SDK in production/live mode.
  */
 export interface TokenVerifier {
   verifyBearerToken(idToken: string): Promise<VerifiedUserIdentity>;
@@ -50,6 +49,18 @@ export class ApiHttpError extends Error {
   }
 }
 
+export type CapabilityStatus = 'working' | 'blocked';
+
+export interface ApiCapabilitiesReport {
+  apiServerReachable: boolean;
+  firebaseProjectIdConfigured: boolean;
+  publicSigningKeysAccessible: boolean;
+  basicIdTokenVerification: CapabilityStatus;
+  tokenRevocationChecking: CapabilityStatus;
+  privilegedFirebaseAdminAccess: CapabilityStatus;
+  firestoreServerOperations: CapabilityStatus;
+}
+
 export interface HealthApiResponse {
   status: 'ok';
   service: string;
@@ -59,13 +70,33 @@ export interface HealthApiResponse {
     environment: string;
     uptimeSeconds: number;
   };
+  capabilities: ApiCapabilitiesReport;
   firebaseAdmin: {
     projectId: string;
+    databaseId: string;
+    location: string;
+    edition: string;
+    mode: string;
     sdkInitialized: boolean;
+    publicSigningKeysAccessible: boolean;
+    basicIdTokenVerification: CapabilityStatus;
+    tokenRevocationChecking: CapabilityStatus;
+    privilegedAdminAccess: CapabilityStatus;
+    firestoreServerOperations: CapabilityStatus;
+    firestoreReadProbeErrorCode?: string | null;
     credentialsAvailable: boolean;
     connectionValidated: boolean;
-    status: 'connected' | 'blocked_missing_credentials' | 'error';
+    status: 'basic_jwt_ready_privileged_blocked' | 'full_privileged_ready' | 'blocked';
     message: string;
+  };
+  firebaseWebSdk?: {
+    projectId: string;
+    authDomain: string;
+    appId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    apiKeyConfigured: boolean;
+    apiKey?: string;
   };
 }
 
@@ -78,9 +109,15 @@ export interface AuthMeApiResponse {
     emailVerified: boolean;
     displayName: string | null;
   };
+  verification: {
+    mode: 'public_certs_basic' | 'privileged_revocation_checked';
+    revocationChecked: boolean;
+    privilegedAdminAccess: CapabilityStatus;
+  };
   authorizationBoundary: {
     role: 'user' | 'admin';
     accountStateEnforced: boolean;
+    privilegedOperationsBlocked: boolean;
     note: string;
   };
 }

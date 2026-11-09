@@ -7,6 +7,11 @@ export interface FirebaseWebConfig {
   appId: string;
 }
 
+const resolvedGlobalWebApiKey =
+  typeof FIREBASE_WEB_API_KEY !== 'undefined' && typeof FIREBASE_WEB_API_KEY === 'string'
+    ? FIREBASE_WEB_API_KEY.trim()
+    : '';
+
 export const environment = {
   production: false,
   appName: 'LinisGo Finder',
@@ -21,7 +26,7 @@ export const environment = {
    * Never place Firebase Admin SDK private keys or backend secrets in frontend files.
    */
   firebase: {
-    apiKey: '',
+    apiKey: resolvedGlobalWebApiKey,
     authDomain: 'linisgo-mobile.firebaseapp.com',
     projectId: 'linisgo-mobile',
     storageBucket: 'linisgo-mobile.firebasestorage.app',

@@ -171,7 +171,7 @@ export class AuthService {
 
   /**
    * Waits for Firebase Authentication to finish restoring the initial session state.
-   * Prevents route guards from prematurely redirecting authenticated users on browser refresh.
+   * Prevents route guards and HTTP interceptors from racing ahead of session restoration.
    */
   async waitForAuthInit(): Promise<User | null> {
     if (this.authInitialized()) {
@@ -181,6 +181,30 @@ export class AuthService {
       return this.initPromise;
     }
     return this.firebaseUser();
+  }
+
+  /**
+   * Runs automatically during Angular application initialization (`provideAppInitializer`).
+   * Ensures Firebase Web configuration is loaded from environment / storage / backend `/api/health`
+   * and waits for initial Firebase Auth session restoration.
+   */
+  async initializeOnAppStartup(): Promise<void> {
+    if (!hasConfiguredFirebaseApiKey() && typeof fetch !== 'undefined') {
+      try {
+        const res = await fetch('/api/health', { method: 'GET' });
+        if (res.ok) {
+          const data = await res.json();
+          const serverWebKey = data?.firebaseWebSdk?.apiKey;
+          if (typeof serverWebKey === 'string' && serverWebKey.trim().startsWith('AIza')) {
+            await this.applyRuntimeFirebaseConfig(serverWebKey.trim());
+            return;
+          }
+        }
+      } catch {
+        // Ignore network errors during startup probe; local config/storage remains active
+      }
+    }
+    await this.waitForAuthInit();
   }
 
   /**
@@ -241,7 +265,7 @@ export class AuthService {
         success: false,
         errorCode: 'auth/api-key-not-configured',
         message:
-          'Firebase Web API Key for project "linisgo-mobile" is required before creating a live Firebase account. Paste your Web API Key (AIza...) in the Firebase Web SDK Setup box on this screen or in src/environments/environment.ts.',
+          'Firebase Web API Key for project "linisgo-mobile" is not yet configured in the environment (FIREBASE_WEB_API_KEY / src/environments/environment.ts).',
       };
     }
 
@@ -300,7 +324,7 @@ export class AuthService {
         success: false,
         errorCode: 'auth/api-key-not-configured',
         message:
-          'Firebase Web API Key for project "linisgo-mobile" is required to sign in with Firebase Authentication. Paste your Web API Key (AIza...) in the Firebase Web SDK Setup box below or in src/environments/environment.ts.',
+          'Firebase Web API Key for project "linisgo-mobile" is not yet configured in the environment (FIREBASE_WEB_API_KEY / src/environments/environment.ts).',
       };
     }
 
@@ -340,7 +364,7 @@ export class AuthService {
         success: false,
         errorCode: 'auth/api-key-not-configured',
         message:
-          'Firebase Web API Key for project "linisgo-mobile" is required to send password reset emails. Paste your Web API Key (AIza...) in the Firebase Web SDK Setup box or in src/environments/environment.ts.',
+          'Firebase Web API Key for project "linisgo-mobile" is not yet configured in the environment (FIREBASE_WEB_API_KEY / src/environments/environment.ts).',
       };
     }
 

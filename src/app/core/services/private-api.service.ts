@@ -36,15 +36,20 @@ export class PrivateApiService {
   }
 
   /**
-   * Checks `GET /api/health` and, if a Firebase user is currently signed in
-   * (or `forceAuthMeCall === true`), also invokes `GET /api/auth/me`.
+   * Waits for Firebase Authentication initialization to complete, checks `GET /api/health`,
+   * and ONLY calls `GET /api/auth/me` if a Firebase user is currently signed in
+   * (or if `forceUnauthenticatedRequest === true` is explicitly passed for a negative security test).
+   * If the user is signed out, displays "Sign in required" instead of performing the protected request.
    */
   async runAuthIntegrationDiagnostic(
-    forceAuthMeCall = true
+    forceUnauthenticatedRequest = false
   ): Promise<AuthIntegrationDiagnosticResult> {
     this.isTestingSignal.set(true);
     const testedAt = new Date().toISOString();
     const endpointTested = this.apiConfig.buildEndpointUrl('/auth/me');
+
+    // 1. Wait until Firebase Authentication initialization is complete
+    await this.authService.waitForAuthInit();
 
     let healthData: HealthApiResponse | null = null;
     let apiReachable = false;
@@ -67,6 +72,7 @@ export class PrivateApiService {
         errorCode: 'API_UNREACHABLE',
         message:
           'Private REST API server is unreachable. Ensure the Express server (port 3001) is running.',
+        uidMatchesFrontendUser: null,
         authenticatedUser: this.authService.isAuthenticatedUser()
           ? {
               displayName: this.authService.currentUserDisplayName(),
@@ -80,26 +86,36 @@ export class PrivateApiService {
       return unreachableResult;
     }
 
-    if (!forceAuthMeCall && !this.authService.isAuthenticatedUser()) {
-      const healthOnlyResult: AuthIntegrationDiagnosticResult = {
+    // 2. If the user is signed out, display "Sign in required" instead of performing GET /api/auth/me
+    if (!this.authService.isAuthenticatedUser() && !forceUnauthenticatedRequest) {
+      const signInRequiredResult: AuthIntegrationDiagnosticResult = {
         testedAt,
         endpointTested,
         apiReachable: true,
         healthData,
-        tokenVerificationStatus: 'unauthorized_401',
-        httpStatusCode: 401,
-        errorCode: 'SIGNED_OUT_CLIENT_STATE',
+        tokenVerificationStatus: 'sign_in_required',
+        httpStatusCode: null,
+        errorCode: 'SIGN_IN_REQUIRED',
         message:
-          'API is reachable (GET /api/health returned HTTP 200). No Firebase user is currently signed in; click "Run API Check" to test GET /api/auth/me rejection (HTTP 401) or sign in first.',
+          'Sign in required — No Firebase user is currently authenticated. Sign in with a real Firebase account to test GET /api/auth/me with a verified ID token.',
+        uidMatchesFrontendUser: null,
         authenticatedUser: null,
       };
-      this.lastDiagnosticSignal.set(healthOnlyResult);
+      this.lastDiagnosticSignal.set(signInRequiredResult);
       this.isTestingSignal.set(false);
-      return healthOnlyResult;
+      return signInRequiredResult;
+    }
+
+    // 3. If the user is signed in, ensure a fresh Firebase ID token is obtained before calling GET /api/auth/me
+    if (this.authService.isAuthenticatedUser()) {
+      await this.authService.getIdToken(false);
     }
 
     try {
       const authMe = await firstValueFrom(this.getAuthMe());
+      const frontendUid = this.authService.currentUserId();
+      const uidMatches = Boolean(frontendUid && authMe.user.uid === frontendUid);
+
       const successResult: AuthIntegrationDiagnosticResult = {
         testedAt,
         endpointTested,
@@ -108,8 +124,10 @@ export class PrivateApiService {
         tokenVerificationStatus: 'verified',
         httpStatusCode: 200,
         errorCode: null,
-        message:
-          'Firebase ID token verified by Private REST API (GET /api/auth/me returned HTTP 200).',
+        message: uidMatches
+          ? 'Firebase ID token cryptographically verified by Private REST API (HTTP 200). Returned UID matches the authenticated Firebase user.'
+          : 'Firebase ID token verified by Private REST API (HTTP 200).',
+        uidMatchesFrontendUser: uidMatches,
         authenticatedUser: {
           displayName: authMe.user.displayName,
           email: authMe.user.email,
@@ -126,9 +144,9 @@ export class PrivateApiService {
         const serverMessage =
           apiError?.message ||
           (err.status === 401
-            ? 'HTTP 401 Unauthorized: Missing, invalid, or expired Firebase ID token.'
+            ? 'HTTP 401 Unauthorized: Missing, invalid, wrong-project, or expired Firebase ID token.'
             : err.status === 503
-            ? 'HTTP 503 Service Unavailable: Trusted server-side Firebase Admin credentials are not configured in this environment.'
+            ? 'HTTP 503 Service Unavailable: Public signing keys unreachable.'
             : `Private REST API returned HTTP ${err.status}.`);
 
         const statusType =
@@ -147,6 +165,7 @@ export class PrivateApiService {
           httpStatusCode: err.status,
           errorCode,
           message: serverMessage,
+          uidMatchesFrontendUser: false,
           authenticatedUser: this.authService.isAuthenticatedUser()
             ? {
                 displayName: this.authService.currentUserDisplayName(),
@@ -169,6 +188,7 @@ export class PrivateApiService {
         httpStatusCode: null,
         errorCode: 'UNKNOWN_ERROR',
         message: 'Unexpected error while communicating with GET /api/auth/me.',
+        uidMatchesFrontendUser: null,
         authenticatedUser: null,
       };
       this.lastDiagnosticSignal.set(fallbackResult);

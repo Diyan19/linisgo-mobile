@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "ng": "ng",
-    "dev": "ng serve --host 0.0.0.0 --port 3000 --no-hmr",
-    "start": "ng serve --host 0.0.0.0 --port 3000 --no-hmr",
+    "dev": "./node_modules/.bin/tsx api/src/server.ts & ng serve --host 0.0.0.0 --port 3000 --no-hmr",
+    "start": "./node_modules/.bin/tsx api/src/server.ts & ng serve --host 0.0.0.0 --port 3000 --no-hmr",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "lint": "tsc --noEmit"

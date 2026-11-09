@@ -166,6 +166,6 @@ export class AdminSystemStatusPage implements OnInit {
   }
 
   async runLiveDiagnostic(): Promise<void> {
-    await this.privateApi.runAuthIntegrationDiagnostic(true);
+    await this.privateApi.runAuthIntegrationDiagnostic(false);
   }
 }

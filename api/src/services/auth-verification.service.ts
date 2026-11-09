@@ -58,14 +58,17 @@ function decodeJwtSegments(idToken: string): DecodedJwtEnvelope {
 }
 
 /**
- * Production TokenVerifier backed by the official Firebase Admin SDK.
+ * Production TokenVerifier backed by the official Firebase Admin SDK (`getAuth().verifyIdToken`).
  *
- * Security behavior:
- * 1. Always rejects malformed, expired, wrong-project, or invalid-signature tokens with HTTP 401.
- * 2. Requires validated server-side Firebase Admin credentials for live revocation-checked
- *    verification (`verifyIdToken(token, true)`). When trusted server-side credentials are
- *    unavailable in the runtime environment, returns HTTP 503 (`AUTH_BACKEND_UNAVAILABLE`)
- *    instead of faking successful backend verification.
+ * Security guarantees:
+ * 1. Never accepts unverified or decoded-only JWT payloads as authenticated identities.
+ * 2. Enforces strict RS256 cryptographic signature verification against Google's public signing
+ *    certificates, plus `iss`, `aud` (`linisgo-mobile`), `exp`, `iat`, and `sub` validation via
+ *    `getFirebaseAdminAuth().verifyIdToken(token, checkRevoked)`.
+ * 3. Rejects tokens from any other Firebase project (`aud !== 'linisgo-mobile'`) with HTTP 401.
+ * 4. Enables revocation checking (`checkRevoked = true`) only when privileged backend credentials
+ *    are available; uses basic public-certificate verification (`checkRevoked = false`) otherwise,
+ *    while keeping all privileged Firebase Admin operations strictly blocked.
  */
 export class FirebaseAdminTokenVerifier implements TokenVerifier {
   private lastCredentialReady = false;
@@ -80,13 +83,15 @@ export class FirebaseAdminTokenVerifier implements TokenVerifier {
       throw new ApiHttpError('MISSING_TOKEN', 'Bearer token is empty.', 401);
     }
 
-    // Step 1: Structural & claims pre-check to immediately reject expired or malformed JWTs with HTTP 401
+    // Step 1: Pre-check JWT envelope to reject obviously malformed, expired, or wrong-project tokens
+    // immediately with clear 401 error codes before calling cryptographic verification.
+    // NOTE: Passing this pre-check NEVER authenticates a request — cryptographic verification in Step 2 is mandatory.
     const { header, payload } = decodeJwtSegments(trimmed);
 
-    if (header.alg !== 'RS256') {
+    if (header.alg !== 'RS256' || !header.kid) {
       throw new ApiHttpError(
         'INVALID_TOKEN',
-        'Invalid token signature algorithm. Expected RS256.',
+        'Invalid token signature algorithm or missing key ID (kid). Expected RS256.',
         401
       );
     }
@@ -101,40 +106,47 @@ export class FirebaseAdminTokenVerifier implements TokenVerifier {
     }
 
     const expectedIssuer = `https://securetoken.google.com/${envConfig.firebaseProjectId}`;
-    if (
-      payload.aud !== envConfig.firebaseProjectId ||
-      payload.iss !== expectedIssuer ||
-      typeof payload.sub !== 'string' ||
-      !payload.sub.trim()
-    ) {
+    if (payload.aud !== envConfig.firebaseProjectId || payload.iss !== expectedIssuer) {
       throw new ApiHttpError(
-        'INVALID_TOKEN',
-        `Token audience or issuer does not match Firebase project "${envConfig.firebaseProjectId}".`,
+        'WRONG_PROJECT_TOKEN',
+        `Token audience or issuer does not match configured Firebase project "${envConfig.firebaseProjectId}".`,
         401
       );
     }
 
-    // Step 2: Check whether trusted server-side Firebase Admin credentials are available
+    if (typeof payload.sub !== 'string' || !payload.sub.trim()) {
+      throw new ApiHttpError(
+        'INVALID_TOKEN',
+        'Firebase ID token is missing a valid subject (sub / uid) claim.',
+        401
+      );
+    }
+
+    // Step 2: Check backend readiness & run cryptographic verification via Firebase Admin SDK
     const diagnostics = await getFirebaseAdminDiagnostics();
-    this.lastCredentialReady = diagnostics.connectionValidated;
+    this.lastCredentialReady = diagnostics.basicIdTokenVerification === 'working';
+
+    if (diagnostics.basicIdTokenVerification !== 'working') {
+      throw new ApiHttpError(
+        'AUTH_BACKEND_UNAVAILABLE',
+        'Basic Firebase ID token verification is currently blocked because Google public signing keys could not be reached.',
+        503
+      );
+    }
 
     const adminAuth = getFirebaseAdminAuth();
+    const useRevocationCheck = diagnostics.tokenRevocationChecking === 'working';
 
-    // First verify cryptographic RS256 signature and claims via Firebase Admin SDK
     try {
-      const decodedToken = await adminAuth.verifyIdToken(
-        trimmed,
-        diagnostics.connectionValidated
-      );
+      // Cryptographically verifies RS256 signature against Google's public X.509 certificates
+      // and validates aud, iss, exp, iat, and sub claims for project `linisgo-mobile`.
+      const decodedToken = await adminAuth.verifyIdToken(trimmed, useRevocationCheck);
 
-      // If cryptographic verification succeeded but server-side Firebase Admin credentials
-      // (ADC / service account for linisgo-mobile) are NOT configured in this environment,
-      // report honestly that live authenticated backend integration is BLOCKED (HTTP 503).
-      if (!diagnostics.connectionValidated) {
+      if (decodedToken.aud !== envConfig.firebaseProjectId) {
         throw new ApiHttpError(
-          'AUTH_BACKEND_UNAVAILABLE',
-          diagnostics.message,
-          503
+          'WRONG_PROJECT_TOKEN',
+          `Verified token audience does not match "${envConfig.firebaseProjectId}".`,
+          401
         );
       }
 
@@ -145,9 +157,15 @@ export class FirebaseAdminTokenVerifier implements TokenVerifier {
         displayName:
           typeof decodedToken['name'] === 'string' ? (decodedToken['name'] as string) : null,
         claims: {
-          role: typeof decodedToken['role'] === 'string' ? (decodedToken['role'] as string) : undefined,
+          role:
+            typeof decodedToken['role'] === 'string'
+              ? (decodedToken['role'] as string)
+              : undefined,
           admin: Boolean(decodedToken['admin']),
         },
+        verificationMode: useRevocationCheck
+          ? 'privileged_revocation_checked'
+          : 'public_certs_basic',
         issuedAt: decodedToken.iat,
         expiresAt: decodedToken.exp,
       };
@@ -178,29 +196,9 @@ export class FirebaseAdminTokenVerifier implements TokenVerifier {
         );
       }
 
-      if (
-        firebaseCode === 'auth/argument-error' ||
-        firebaseCode === 'auth/invalid-id-token'
-      ) {
-        throw new ApiHttpError(
-          'INVALID_TOKEN',
-          'Invalid Firebase ID token signature or claims.',
-          401
-        );
-      }
-
-      // If verification failed due to missing backend credentials or network/credential error
-      if (!diagnostics.connectionValidated) {
-        throw new ApiHttpError(
-          'AUTH_BACKEND_UNAVAILABLE',
-          diagnostics.message,
-          503
-        );
-      }
-
       throw new ApiHttpError(
         'INVALID_TOKEN',
-        'Unable to verify Firebase ID token.',
+        'Invalid Firebase ID token signature or claims.',
         401
       );
     }

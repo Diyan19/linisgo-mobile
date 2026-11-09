@@ -28,7 +28,7 @@ function buildJwtSegment(obj) {
 // PART A: LIVE EXPRESS SERVER & PRODUCTION FIREBASE ADMIN VERIFIER TESTS
 // ============================================================================
 
-test('Live Backend Test 1 & 2: Express server starts independently and serves GET /api/health with HTTP 200', async () => {
+test('Live Backend Test 1 & 2: Express server starts independently and GET /api/health reports all 7 separated capabilities', async () => {
   const app = createApp();
   const { baseUrl, close } = await startTestServer(app);
 
@@ -45,13 +45,16 @@ test('Live Backend Test 1 & 2: Express server starts independently and serves GE
     assert.equal(body.service, 'linisgo-finder-private-api');
     assert.equal(typeof body.timestamp, 'string');
     assert.equal(body.firebaseAdmin.projectId, 'linisgo-mobile');
-    assert.equal(typeof body.firebaseAdmin.sdkInitialized, 'boolean');
-    assert.equal(typeof body.firebaseAdmin.connectionValidated, 'boolean');
 
-    // Must not falsely report Firebase as connected when credentials are not validated
-    if (!body.firebaseAdmin.connectionValidated) {
-      assert.equal(body.firebaseAdmin.status, 'blocked_missing_credentials');
-    }
+    // Verify separated capabilities object
+    assert.equal(body.capabilities.apiServerReachable, true);
+    assert.equal(body.capabilities.firebaseProjectIdConfigured, true);
+    assert.equal(body.capabilities.publicSigningKeysAccessible, true);
+    assert.equal(body.capabilities.basicIdTokenVerification, 'working');
+    assert.equal(body.capabilities.tokenRevocationChecking, 'blocked');
+    assert.equal(body.capabilities.privilegedFirebaseAdminAccess, 'blocked');
+    assert.equal(body.capabilities.firestoreServerOperations, 'blocked');
+    assert.equal(body.firebaseAdmin.status, 'basic_jwt_ready_privileged_blocked');
   } finally {
     await close();
   }
@@ -142,7 +145,37 @@ test('Live Backend Test 5: GET /api/auth/me with expired token returns HTTP 401'
   }
 });
 
-test('Live Backend Test 6: Error responses never leak private data, stack traces, or tokens; restricted CORS rejects unauthorized origins', async () => {
+test('Live Backend Test 6: GET /api/auth/me rejects tokens from another Firebase project with HTTP 401', async () => {
+  const app = createApp();
+  const { baseUrl, close } = await startTestServer(app);
+
+  try {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const wrongProjectJwt = [
+      buildJwtSegment({ alg: 'RS256', typ: 'JWT', kid: 'other-project-kid' }),
+      buildJwtSegment({
+        iss: 'https://securetoken.google.com/other-firebase-project',
+        aud: 'other-firebase-project',
+        sub: 'other-project-uid-99',
+        iat: nowSec - 60,
+        exp: nowSec + 3600,
+      }),
+      'someSignatureBytes',
+    ].join('.');
+
+    const res = await fetch(`${baseUrl}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${wrongProjectJwt}` },
+    });
+    assert.equal(res.status, 401, 'Token from another Firebase project must be rejected with HTTP 401');
+    const body = await res.json();
+    assert.equal(body.status, 'error');
+    assert.equal(body.code, 'WRONG_PROJECT_TOKEN');
+  } finally {
+    await close();
+  }
+});
+
+test('Live Backend Test 7: Error responses never leak private data, stack traces, or tokens; restricted CORS rejects unauthorized origins', async () => {
   const app = createApp({
     allowedOrigins: ['http://localhost:3000'],
   });
@@ -173,7 +206,7 @@ test('Live Backend Test 6: Error responses never leak private data, stack traces
 // PART B: ISOLATED MIDDLEWARE & CONTROLLER UNIT TESTS (INJECTED TEST DOUBLE)
 // ============================================================================
 
-test('Isolated Unit Test 7: GET /api/auth/me with injected TokenVerifier returns HTTP 200 and ignores client-supplied UID', async () => {
+test('Isolated Unit Test 8: GET /api/auth/me with injected TokenVerifier returns HTTP 200, reports privilegedOperationsBlocked: true, and ignores client-supplied UID', async () => {
   const mockVerifier = {
     isBackendCredentialReady: () => true,
     async verifyBearerToken(idToken) {
@@ -184,6 +217,7 @@ test('Isolated Unit Test 7: GET /api/auth/me with injected TokenVerifier returns
           emailVerified: true,
           displayName: 'Maria Santos',
           claims: { role: 'user', admin: false },
+          verificationMode: 'public_certs_basic',
         };
       }
       throw new ApiHttpError('INVALID_TOKEN', 'Invalid token in unit test', 401);
@@ -206,14 +240,18 @@ test('Isolated Unit Test 7: GET /api/auth/me with injected TokenVerifier returns
     assert.equal(body.user.email, 'maria.santos@linisgo.ph');
     assert.equal(body.user.emailVerified, true);
     assert.equal(body.user.displayName, 'Maria Santos');
+    assert.equal(body.verification.mode, 'public_certs_basic');
+    assert.equal(body.verification.revocationChecked, false);
+    assert.equal(body.verification.privilegedAdminAccess, 'blocked');
     assert.equal(body.authorizationBoundary.role, 'user');
     assert.equal(body.authorizationBoundary.accountStateEnforced, false);
+    assert.equal(body.authorizationBoundary.privilegedOperationsBlocked, true);
   } finally {
     await close();
   }
 });
 
-test('Isolated Unit Test 8: requireAdmin middleware denies regular authenticated user (HTTP 403) and allows verified custom-claim admin (HTTP 200)', async () => {
+test('Isolated Unit Test 9: requireAdmin middleware denies regular authenticated user (HTTP 403) and allows verified custom-claim admin (HTTP 200)', async () => {
   const mockVerifier = {
     isBackendCredentialReady: () => true,
     async verifyBearerToken(idToken) {
@@ -223,7 +261,8 @@ test('Isolated Unit Test 8: requireAdmin middleware denies regular authenticated
           email: 'user@linisgo.ph',
           emailVerified: true,
           displayName: 'Regular User',
-          claims: { tag: 'provider' }, // Descriptive profile tag must NEVER grant admin
+          claims: { tag: 'provider' },
+          verificationMode: 'public_certs_basic',
         };
       }
       if (idToken === 'trusted-admin-claim-token') {
@@ -233,6 +272,7 @@ test('Isolated Unit Test 8: requireAdmin middleware denies regular authenticated
           emailVerified: true,
           displayName: 'System Admin',
           claims: { admin: true, role: 'admin' },
+          verificationMode: 'privileged_revocation_checked',
         };
       }
       throw new ApiHttpError('INVALID_TOKEN', 'Invalid token', 401);
@@ -257,7 +297,7 @@ test('Isolated Unit Test 8: requireAdmin middleware denies regular authenticated
   }
 });
 
-test('Live Backend Test 9: Environment configuration matches Task 1.1 values and permits Google AI Studio preview origin via CORS', async () => {
+test('Live Backend Test 10: Environment configuration matches Task 1.1 values and permits Google AI Studio preview origin via CORS', async () => {
   const { envConfig } = await import('../dist/config/env.js');
   assert.equal(envConfig.host, '0.0.0.0');
   assert.equal(envConfig.port, 3001);
@@ -282,4 +322,3 @@ test('Live Backend Test 9: Environment configuration matches Task 1.1 values and
     await close();
   }
 });
-

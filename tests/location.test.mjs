@@ -94,9 +94,25 @@ test('Task 1.1 Angular Frontend Private API Integration & Token Interceptor safe
     interceptorSrc.includes('!apiConfig.isPrivateApiUrl(req.url)'),
     'firebaseAuthInterceptor must never attach Bearer tokens to third-party URLs'
   );
+  assert.ok(
+    interceptorSrc.includes('waitForAuthInit'),
+    'firebaseAuthInterceptor must wait until Firebase Auth initialization completes'
+  );
   assert.ok(!interceptorSrc.includes('console.log'), 'firebaseAuthInterceptor must never log tokens to the console');
   assert.ok(privateApiSrc.includes('/auth/me'), 'PrivateApiService must support GET /api/auth/me');
+  assert.ok(
+    privateApiSrc.includes("tokenVerificationStatus: 'sign_in_required'") &&
+      privateApiSrc.includes('Sign in required'),
+    'PrivateApiService must report Sign in required instead of calling GET /api/auth/me when signed out'
+  );
   assert.ok(!userHomeHtml.includes('currentUserId()'), 'User Home screen must not prominently display the Firebase UID');
+
+  const loginHtml = fs.readFileSync('src/app/features/auth/login/login.page.html', 'utf8');
+  const registerHtml = fs.readFileSync('src/app/features/auth/register/register.page.html', 'utf8');
+  assert.ok(
+    !loginHtml.includes('Update Web API Key') && !registerHtml.includes('Update Web API Key'),
+    'Login and Register pages must not require normal users to paste Firebase configuration'
+  );
 });
 
 test('Security check: no Firebase Admin SDK private keys or service account JSON files exist in src/ or public/', () => {

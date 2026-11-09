@@ -5,12 +5,18 @@ import helmet from 'helmet';
 import { envConfig } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { createAuthRouter } from './routes/auth.routes.js';
+import { createFirestorePreparedRouter } from './routes/firestore-prepared.routes.js';
 import { createHealthRouter } from './routes/health.routes.js';
+import {
+  defaultFirestoreRepositories,
+  FirestoreRepositoryBundle,
+} from './repositories/firestore.repository.js';
 import { defaultTokenVerifier } from './services/auth-verification.service.js';
 import { TokenVerifier } from './types/auth.types.js';
 
 export interface CreateAppOptions {
   tokenVerifier?: TokenVerifier;
+  firestoreRepositories?: FirestoreRepositoryBundle;
   allowedOrigins?: string[];
   enableRateLimit?: boolean;
 }
@@ -22,6 +28,7 @@ export interface CreateAppOptions {
 export function createApp(options: CreateAppOptions = {}): Express {
   const app = express();
   const verifier = options.tokenVerifier ?? defaultTokenVerifier;
+  const repos = options.firestoreRepositories ?? defaultFirestoreRepositories;
   const allowedOrigins = options.allowedOrigins ?? envConfig.allowedOrigins;
   const enableRateLimit = options.enableRateLimit ?? true;
 
@@ -80,6 +87,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   // API Routes
   app.use('/api/health', createHealthRouter());
   app.use('/api/auth', createAuthRouter(verifier));
+  app.use('/api', createFirestorePreparedRouter(verifier, repos));
 
   // 404 & Centralized Error Handling
   app.use(notFoundHandler);

@@ -9,42 +9,46 @@ let firebaseAuthInstance: Auth | null = null;
 
 /**
  * Resolves the active Firebase Web SDK configuration for `linisgo-mobile`.
- * Keeps `projectId`, `authDomain`, and `appId` pinned to the existing `linisgo-mobile` project
- * while allowing the public Web `apiKey` to be supplied via environment.ts or runtime storage.
+ * Automatically loads the Firebase Web API key during application initialization from:
+ * 1. `environment.firebase.apiKey`
+ * 2. Global `FIREBASE_WEB_API_KEY` (if defined)
+ * 3. Browser `localStorage` (`linisgo_firebase_web_config_v1`, or synced from `/api/health`)
+ * Keeps `projectId`, `authDomain`, and `appId` pinned to the existing `linisgo-mobile` project.
  */
 export function getResolvedFirebaseConfig(): FirebaseWebConfig {
   const base: FirebaseWebConfig = {
     ...environment.firebase,
   };
 
+  if (
+    !base.apiKey &&
+    typeof FIREBASE_WEB_API_KEY !== 'undefined' &&
+    typeof FIREBASE_WEB_API_KEY === 'string' &&
+    FIREBASE_WEB_API_KEY.trim().startsWith('AIza')
+  ) {
+    base.apiKey = FIREBASE_WEB_API_KEY.trim();
+  }
+
   try {
     if (typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem(FIREBASE_RUNTIME_CONFIG_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<FirebaseWebConfig>;
-        if (parsed.apiKey && typeof parsed.apiKey === 'string') {
+        if (parsed.apiKey && typeof parsed.apiKey === 'string' && parsed.apiKey.trim().startsWith('AIza')) {
           base.apiKey = parsed.apiKey.trim();
-        }
-        if (parsed.authDomain && typeof parsed.authDomain === 'string') {
-          base.authDomain = parsed.authDomain.trim();
-        }
-        if (parsed.projectId && typeof parsed.projectId === 'string') {
-          base.projectId = parsed.projectId.trim();
-        }
-        if (parsed.appId && typeof parsed.appId === 'string') {
-          base.appId = parsed.appId.trim();
-        }
-        if (parsed.storageBucket && typeof parsed.storageBucket === 'string') {
-          base.storageBucket = parsed.storageBucket.trim();
-        }
-        if (parsed.messagingSenderId && typeof parsed.messagingSenderId === 'string') {
-          base.messagingSenderId = parsed.messagingSenderId.trim();
         }
       }
     }
   } catch {
     // Ignore storage read errors
   }
+
+  // Strictly pin to existing project linisgo-mobile
+  base.projectId = 'linisgo-mobile';
+  base.authDomain = 'linisgo-mobile.firebaseapp.com';
+  base.appId = '1:932812492190:web:20c4c8982f8c6adfa5da8f';
+  base.storageBucket = 'linisgo-mobile.firebasestorage.app';
+  base.messagingSenderId = '932812492190';
 
   return base;
 }

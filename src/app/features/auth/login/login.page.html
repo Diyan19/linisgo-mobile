@@ -17,55 +17,17 @@
       </p>
     </div>
 
-    <!-- Firebase Project & Web SDK Connection Status Card -->
-    <div class="firebase-status-box" [class.needs-key]="!authService.firebaseApiKeyConfigured()">
+    <!-- Clean Firebase Project Connection Banner (No manual config prompt for normal users) -->
+    <div class="firebase-status-box">
       <div class="fb-status-top">
         <div class="fb-title-group">
           <ion-icon name="shield-checkmark-outline"></ion-icon>
           <span>Firebase Auth: <b>{{ projectSummary.projectId }}</b></span>
         </div>
-        <ion-badge [color]="authService.firebaseApiKeyConfigured() ? 'success' : 'warning'">
-          {{ authService.firebaseApiKeyConfigured() ? 'Web SDK Ready' : 'Web API Key Required' }}
+        <ion-badge color="success">
+          {{ projectSummary.authDomain }}
         </ion-badge>
       </div>
-      <div class="fb-meta-text">
-        Auth Domain: <code>{{ projectSummary.authDomain }}</code> · App ID: <code>{{ projectSummary.appId }}</code>
-      </div>
-
-      @if (!authService.firebaseApiKeyConfigured() || showConfigEditor) {
-        <div class="fb-config-editor">
-          <label for="fb-api-key-input" class="config-label">
-            Paste Public Firebase Web API Key (<code>AIza...</code>) or <code>firebaseConfig</code> for <b>linisgo-mobile</b>:
-          </label>
-          <input
-            id="fb-api-key-input"
-            type="text"
-            [value]="firebaseConfigInput"
-            (input)="firebaseConfigInput = $any($event.target).value"
-            placeholder="AIzaSy... or full firebaseConfig snippet (Never paste private keys)"
-            class="config-raw-input"
-          />
-          <div class="config-actions">
-            <ion-button size="small" color="primary" (click)="onApplyFirebaseConfig()">
-              Save Web API Key
-            </ion-button>
-            @if (authService.firebaseApiKeyConfigured()) {
-              <ion-button size="small" fill="clear" color="medium" (click)="showConfigEditor = false">
-                Cancel
-              </ion-button>
-            }
-          </div>
-          @if (configFeedback) {
-            <div class="config-feedback">{{ configFeedback }}</div>
-          }
-        </div>
-      } @else {
-        <div class="fb-config-toggle-row">
-          <button type="button" class="text-btn" (click)="showConfigEditor = true">
-            Update Web API Key ›
-          </button>
-        </div>
-      }
     </div>
 
     <!-- Real Firebase Sign-In Form Card -->

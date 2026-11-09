@@ -1,3 +1,15 @@
+export type CapabilityStatus = 'working' | 'blocked';
+
+export interface ApiCapabilitiesReport {
+  apiServerReachable: boolean;
+  firebaseProjectIdConfigured: boolean;
+  publicSigningKeysAccessible: boolean;
+  basicIdTokenVerification: CapabilityStatus;
+  tokenRevocationChecking: CapabilityStatus;
+  privilegedFirebaseAdminAccess: CapabilityStatus;
+  firestoreServerOperations: CapabilityStatus;
+}
+
 export interface HealthApiResponse {
   status: 'ok';
   service: string;
@@ -7,13 +19,28 @@ export interface HealthApiResponse {
     environment: string;
     uptimeSeconds: number;
   };
+  capabilities: ApiCapabilitiesReport;
   firebaseAdmin: {
     projectId: string;
     sdkInitialized: boolean;
+    publicSigningKeysAccessible: boolean;
+    basicIdTokenVerification: CapabilityStatus;
+    tokenRevocationChecking: CapabilityStatus;
+    privilegedAdminAccess: CapabilityStatus;
+    firestoreServerOperations: CapabilityStatus;
     credentialsAvailable: boolean;
     connectionValidated: boolean;
-    status: 'connected' | 'blocked_missing_credentials' | 'error';
+    status: 'basic_jwt_ready_privileged_blocked' | 'full_privileged_ready' | 'blocked';
     message: string;
+  };
+  firebaseWebSdk?: {
+    projectId: string;
+    authDomain: string;
+    appId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    apiKeyConfigured: boolean;
+    apiKey?: string;
   };
 }
 
@@ -26,9 +53,15 @@ export interface AuthMeApiResponse {
     emailVerified: boolean;
     displayName: string | null;
   };
+  verification: {
+    mode: 'public_certs_basic' | 'privileged_revocation_checked';
+    revocationChecked: boolean;
+    privilegedAdminAccess: CapabilityStatus;
+  };
   authorizationBoundary: {
     role: 'user' | 'admin';
     accountStateEnforced: boolean;
+    privilegedOperationsBlocked: boolean;
     note: string;
   };
 }
@@ -47,6 +80,7 @@ export interface AuthIntegrationDiagnosticResult {
   healthData: HealthApiResponse | null;
   tokenVerificationStatus:
     | 'verified'
+    | 'sign_in_required'
     | 'unauthorized_401'
     | 'blocked_missing_backend_credentials_503'
     | 'unreachable'
@@ -54,6 +88,7 @@ export interface AuthIntegrationDiagnosticResult {
   httpStatusCode: number | null;
   errorCode: string | null;
   message: string;
+  uidMatchesFrontendUser: boolean | null;
   authenticatedUser: {
     displayName: string | null;
     email: string | null;

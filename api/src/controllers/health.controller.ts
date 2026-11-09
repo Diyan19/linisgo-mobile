@@ -6,11 +6,10 @@ import { HealthApiResponse } from '../types/auth.types.js';
 /**
  * GET /api/health
  * Public health endpoint (no authentication required).
- * Reports honest runtime and Firebase Admin SDK credential validation status
- * without exposing secrets, private keys, or stack traces.
+ * Reports all 7 API readiness capabilities separately without exposing secrets.
  */
 export async function getHealthStatus(_req: Request, res: Response): Promise<void> {
-  const firebaseDiagnostics = await getFirebaseAdminDiagnostics();
+  const diag = await getFirebaseAdminDiagnostics();
 
   const response: HealthApiResponse = {
     status: 'ok',
@@ -21,13 +20,41 @@ export async function getHealthStatus(_req: Request, res: Response): Promise<voi
       environment: envConfig.nodeEnv,
       uptimeSeconds: Math.floor(process.uptime()),
     },
+    capabilities: {
+      apiServerReachable: true,
+      firebaseProjectIdConfigured: diag.firebaseProjectIdConfigured,
+      publicSigningKeysAccessible: diag.publicSigningKeysAccessible,
+      basicIdTokenVerification: diag.basicIdTokenVerification,
+      tokenRevocationChecking: diag.tokenRevocationChecking,
+      privilegedFirebaseAdminAccess: diag.privilegedFirebaseAdminAccess,
+      firestoreServerOperations: diag.firestoreServerOperations,
+    },
     firebaseAdmin: {
-      projectId: firebaseDiagnostics.projectId,
-      sdkInitialized: firebaseDiagnostics.sdkInitialized,
-      credentialsAvailable: firebaseDiagnostics.credentialsAvailable,
-      connectionValidated: firebaseDiagnostics.connectionValidated,
-      status: firebaseDiagnostics.status,
-      message: firebaseDiagnostics.message,
+      projectId: diag.projectId,
+      databaseId: diag.databaseId,
+      location: diag.location,
+      edition: diag.edition,
+      mode: diag.mode,
+      sdkInitialized: diag.sdkInitialized,
+      publicSigningKeysAccessible: diag.publicSigningKeysAccessible,
+      basicIdTokenVerification: diag.basicIdTokenVerification,
+      tokenRevocationChecking: diag.tokenRevocationChecking,
+      privilegedAdminAccess: diag.privilegedFirebaseAdminAccess,
+      firestoreServerOperations: diag.firestoreServerOperations,
+      firestoreReadProbeErrorCode: diag.firestoreReadProbeErrorCode,
+      credentialsAvailable: diag.credentialsAvailable,
+      connectionValidated: diag.connectionValidated,
+      status: diag.status,
+      message: diag.message,
+    },
+    firebaseWebSdk: {
+      projectId: 'linisgo-mobile',
+      authDomain: 'linisgo-mobile.firebaseapp.com',
+      appId: '1:932812492190:web:20c4c8982f8c6adfa5da8f',
+      storageBucket: 'linisgo-mobile.firebasestorage.app',
+      messagingSenderId: '932812492190',
+      apiKeyConfigured: Boolean(envConfig.firebaseWebApiKey),
+      ...(envConfig.firebaseWebApiKey ? { apiKey: envConfig.firebaseWebApiKey } : {}),
     },
   };
 

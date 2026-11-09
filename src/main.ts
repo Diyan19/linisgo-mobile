@@ -25,10 +25,12 @@ import {
   timeOutline,
 } from 'ionicons/icons';
 
+import { APP_INITIALIZER, inject } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { routes } from './app/app.routes';
 import { AppComponent } from './app/app.component';
 import { firebaseAuthInterceptor } from './app/core/interceptors/firebase-auth.interceptor';
+import { AuthService } from './app/core/services/auth.service';
 
 addIcons({
   homeOutline,
@@ -59,5 +61,13 @@ bootstrapApplication(AppComponent, {
     provideIonicAngular({ mode: 'md' }),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(withInterceptors([firebaseAuthInterceptor])),
+    {
+      provide: APP_INITIALIZER,
+      useFactory: () => {
+        const authService = inject(AuthService);
+        return () => authService.initializeOnAppStartup();
+      },
+      multi: true,
+    },
   ],
 }).catch((err) => console.error(err));

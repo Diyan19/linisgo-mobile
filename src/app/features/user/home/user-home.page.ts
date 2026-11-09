@@ -22,6 +22,7 @@ import {
 } from 'ionicons/icons';
 import { PublicDataService } from '../../../core/services/public-data.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PrivateApiService } from '../../../core/services/private-api.service';
 import { PostCardComponent } from '../../../shared/components/post-card/post-card.component';
 
 @Component({
@@ -44,6 +45,7 @@ import { PostCardComponent } from '../../../shared/components/post-card/post-car
 export class UserHomePage implements OnInit {
   readonly dataService = inject(PublicDataService);
   readonly authService = inject(AuthService);
+  readonly privateApi = inject(PrivateApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -66,6 +68,8 @@ export class UserHomePage implements OnInit {
     this.route.queryParamMap.subscribe(params => {
       this.adminAccessDeniedNotice = params.get('adminDenied') === '1';
     });
+    // Automatically run authenticated GET /api/auth/me check when signed in
+    void this.privateApi.runAuthIntegrationDiagnostic(false);
   }
 
   get userTagLabel(): string {

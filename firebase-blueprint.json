@@ -1,0 +1,428 @@
+{
+  "entities": {
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Publicly discoverable user profile information separated from private registration data. Never requires or reveals personal home municipality.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "biography": { "type": "string", "maxLength": 600 },
+        "profilePhotoUrl": { "type": "string", "maxLength": 500 },
+        "profileTag": { "type": "string", "enum": ["client", "provider"] },
+        "availability": { "type": "string", "maxLength": 120 },
+        "serviceAreaMunicipalityIds": { "type": "array" },
+        "publicPhone": { "type": "string", "maxLength": 32 },
+        "publicFacebookUrl": { "type": "string", "maxLength": 250 },
+        "visibilityState": { "type": "string", "enum": ["public", "hidden"] },
+        "authorAccountState": {
+          "type": "string",
+          "enum": [
+            "active",
+            "deactivated",
+            "suspended",
+            "pending_deletion",
+            "deletion_processing",
+            "deleted"
+          ]
+        },
+        "publicVisible": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "profileTag",
+        "serviceAreaMunicipalityIds",
+        "visibilityState",
+        "authorAccountState",
+        "publicVisible",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PrivateProfile": {
+      "title": "PrivateProfile",
+      "description": "Private account metadata, raw contact values, and independent opt-in map preferences isolated from public reads.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "registrationEmail": { "type": "string", "format": "email", "maxLength": 254 },
+        "emailVerified": { "type": "boolean" },
+        "phoneNumber": { "type": "string", "maxLength": 32 },
+        "facebookUrl": { "type": "string", "maxLength": 250 },
+        "showPhonePublicly": { "type": "boolean" },
+        "showFacebookPublicly": { "type": "boolean" },
+        "mapConsent": { "type": "boolean" },
+        "mapMunicipalityId": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "registrationEmail",
+        "emailVerified",
+        "showPhonePublicly",
+        "showFacebookPublicly",
+        "mapConsent",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AccountState": {
+      "title": "AccountState",
+      "description": "Server-authoritative account lifecycle, temporary/indefinite suspension, and permanent deletion cleanup tracking record.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "deactivated",
+            "suspended",
+            "pending_deletion",
+            "deletion_processing",
+            "deleted"
+          ]
+        },
+        "suspensionType": { "type": "string", "enum": ["none", "temporary", "indefinite"] },
+        "suspendedAt": { "type": "string", "format": "date-time" },
+        "suspensionExpiresAt": { "type": "string", "format": "date-time" },
+        "deactivatedAt": { "type": "string", "format": "date-time" },
+        "reactivatedAt": { "type": "string", "format": "date-time" },
+        "administrativeReason": { "type": "string", "maxLength": 500 },
+        "moderationReferenceId": { "type": "string", "maxLength": 128 },
+        "deletionCleanup": { "type": "object" },
+        "updatedByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "state",
+        "suspensionType",
+        "deletionCleanup",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Shared service discovery post separating publicationState, lifecycleStatus (Request: open/closed; Offer: active/archived), and after-publication moderationStatus.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorDisplayName": { "type": "string", "maxLength": 80 },
+        "authorProfileTag": { "type": "string", "enum": ["client", "provider"] },
+        "postType": { "type": "string", "enum": ["request", "offer"] },
+        "title": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "description": { "type": "string", "minLength": 10, "maxLength": 2000 },
+        "cleaningCategory": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "publicationState": {
+          "type": "string",
+          "enum": ["draft", "published"]
+        },
+        "lifecycleStatus": {
+          "type": "string",
+          "enum": ["open", "closed", "active", "archived"]
+        },
+        "moderationStatus": {
+          "type": "string",
+          "enum": ["none", "flagged", "hidden", "removed"]
+        },
+        "moderationReferenceId": { "type": "string", "maxLength": 128 },
+        "authorAccountState": {
+          "type": "string",
+          "enum": [
+            "active",
+            "deactivated",
+            "suspended",
+            "pending_deletion",
+            "deletion_processing",
+            "deleted"
+          ]
+        },
+        "publicVisible": { "type": "boolean" },
+        "targetMunicipalityId": { "type": "string", "maxLength": 40 },
+        "coverageAreaIds": { "type": "array" },
+        "priceOrBudget": { "type": "string", "maxLength": 80 },
+        "photoUrls": { "type": "array" },
+        "publicAreaDescription": { "type": "string", "maxLength": 160 },
+        "scheduleNote": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "publishedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "authorUid",
+        "postType",
+        "title",
+        "description",
+        "cleaningCategory",
+        "publicationState",
+        "lifecycleStatus",
+        "moderationStatus",
+        "authorAccountState",
+        "publicVisible",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavedUser": {
+      "title": "SavedUser",
+      "description": "Canonical top-level per-user bookmark referencing a saved user profile with deterministic ID ${ownerUid}_${targetUid}.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 260, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "targetUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "targetUid", "createdAt"]
+    },
+    "SavedPost": {
+      "title": "SavedPost",
+      "description": "Canonical top-level per-user bookmark referencing a saved post with deterministic ID ${ownerUid}_${postId}.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 260, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "postId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "postId", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Private user-submitted moderation report using the approved status model: pending | under_review | resolved | dismissed.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reporterUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "targetType": { "type": "string", "enum": ["post", "user"] },
+        "targetId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "spam_or_fake",
+            "inappropriate_content",
+            "harassment_or_safety",
+            "scam_or_fraud",
+            "privacy_violation",
+            "other"
+          ]
+        },
+        "explanation": { "type": "string", "minLength": 10, "maxLength": 1000 },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "under_review", "resolved", "dismissed"]
+        },
+        "adminDecision": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "reporterUid",
+        "targetType",
+        "targetId",
+        "reason",
+        "explanation",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Appeal": {
+      "title": "Appeal",
+      "description": "Appeal for administrator account suspensions ('account_suspension') or administrator-hidden posts ('post_hidden').",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "appellantUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "targetModerationAction": {
+          "type": "string",
+          "enum": ["account_suspension", "post_hidden"]
+        },
+        "targetId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "moderationReferenceId": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "minLength": 10, "maxLength": 1500 },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "under_review", "approved", "rejected"]
+        },
+        "decisionDetails": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "appellantUid",
+        "targetModerationAction",
+        "targetId",
+        "moderationReferenceId",
+        "reason",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Canonical top-level private in-app notification record for a specific recipient user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "recipientUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "message": { "type": "string", "minLength": 2, "maxLength": 600 },
+        "eventType": {
+          "type": "string",
+          "enum": [
+            "account_status",
+            "moderation_update",
+            "appeal_decision",
+            "report_update",
+            "post_status",
+            "system_announcement"
+          ]
+        },
+        "read": { "type": "boolean" },
+        "relatedRecordType": { "type": "string", "enum": ["post", "report", "appeal", "account"] },
+        "relatedRecordId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "readAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "recipientUid", "title", "message", "eventType", "read", "createdAt"]
+    },
+    "PublicMapMarker": {
+      "title": "PublicMapMarker",
+      "description": "Opt-in approximate municipal map discovery marker pinned strictly to Oriental Mindoro town centers, independent of post coverage.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "profileTag": { "type": "string", "enum": ["client", "provider"] },
+        "municipalityId": { "type": "string", "maxLength": 40 },
+        "municipalityName": { "type": "string", "maxLength": 80 },
+        "approximateLat": { "type": "number" },
+        "approximateLng": { "type": "number" },
+        "mapConsent": { "type": "boolean" },
+        "authorAccountState": {
+          "type": "string",
+          "enum": [
+            "active",
+            "deactivated",
+            "suspended",
+            "pending_deletion",
+            "deletion_processing",
+            "deleted"
+          ]
+        },
+        "publicVisible": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "profileTag",
+        "municipalityId",
+        "municipalityName",
+        "approximateLat",
+        "approximateLng",
+        "mapConsent",
+        "authorAccountState",
+        "publicVisible",
+        "updatedAt"
+      ]
+    },
+    "AdminAuditLog": {
+      "title": "AdminAuditLog",
+      "description": "Immutable administrator audit log record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "adminUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actionType": {
+          "type": "string",
+          "enum": [
+            "hide_post",
+            "restore_post",
+            "suspend_user",
+            "reactivate_user",
+            "resolve_report",
+            "dismiss_report",
+            "approve_appeal",
+            "reject_appeal"
+          ]
+        },
+        "targetType": { "type": "string", "enum": ["post", "user", "report", "appeal"] },
+        "targetId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "moderationReferenceId": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "minLength": 3, "maxLength": 600 },
+        "result": { "type": "string", "enum": ["success", "failure"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "adminUid",
+        "actionType",
+        "targetType",
+        "targetId",
+        "reason",
+        "result",
+        "timestamp"
+      ]
+    }
+  },
+  "firestore": {
+    "/publicProfiles/{uid}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Publicly visible user profile records keyed by Firebase Auth UID."
+    },
+    "/privateProfiles/{uid}": {
+      "schema": { "$ref": "#/entities/PrivateProfile" },
+      "description": "Private user account metadata, contact values, and map consent settings keyed by UID."
+    },
+    "/accountStates/{uid}": {
+      "schema": { "$ref": "#/entities/AccountState" },
+      "description": "Trusted server-managed account lifecycle, suspension, and deletion cleanup records keyed by UID."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Shared service discovery posts (Service Requests and Service Offers)."
+    },
+    "/savedUsers/{bookmarkId}": {
+      "schema": { "$ref": "#/entities/SavedUser" },
+      "description": "Canonical top-level collection for saved user bookmarks keyed deterministically by ${ownerUid}_${targetUid}."
+    },
+    "/savedPosts/{bookmarkId}": {
+      "schema": { "$ref": "#/entities/SavedPost" },
+      "description": "Canonical top-level collection for saved post bookmarks keyed deterministically by ${ownerUid}_${postId}."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Private moderation reports submitted by authenticated users."
+    },
+    "/appeals/{appealId}": {
+      "schema": { "$ref": "#/entities/Appeal" },
+      "description": "Private account suspension and hidden-post appeals submitted by affected users."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Canonical top-level collection for private in-app notifications."
+    },
+    "/publicMapMarkers/{uid}": {
+      "schema": { "$ref": "#/entities/PublicMapMarker" },
+      "description": "Opt-in approximate municipal map discovery markers keyed by UID."
+    },
+    "/adminAuditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AdminAuditLog" },
+      "description": "Immutable administrator moderation and system audit logs."
+    }
+  }
+}

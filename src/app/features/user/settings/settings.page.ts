@@ -168,7 +168,7 @@ export class SettingsPage implements OnInit {
   }
 
   async onRunApiDiagnostic(): Promise<void> {
-    await this.privateApi.runAuthIntegrationDiagnostic();
+    await this.privateApi.runAuthIntegrationDiagnostic(false);
   }
 
   async onResendVerification(): Promise<void> {

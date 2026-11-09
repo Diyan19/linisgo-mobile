@@ -12,7 +12,7 @@ import {
  * Security Rules:
  * - Uses ONLY `req.authenticatedUser` populated from the verified Firebase ID token.
  * - Never trusts any UID or email passed in query parameters, headers, or request body.
- * - Returns minimal authenticated user profile metadata without password hashes or raw tokens.
+ * - Distinguishes basic public-certificate JWT verification from privileged Firebase Admin operations.
  */
 export function getAuthenticatedUserMe(
   req: AuthenticatedRequest,
@@ -30,6 +30,8 @@ export function getAuthenticatedUserMe(
 
   const isTrustedAdmin =
     verifiedUser.claims.admin === true || verifiedUser.claims.role === 'admin';
+  const revocationChecked =
+    verifiedUser.verificationMode === 'privileged_revocation_checked';
 
   const payload: AuthMeApiResponse = {
     status: 'ok',
@@ -40,11 +42,17 @@ export function getAuthenticatedUserMe(
       emailVerified: verifiedUser.emailVerified,
       displayName: verifiedUser.displayName,
     },
+    verification: {
+      mode: verifiedUser.verificationMode,
+      revocationChecked,
+      privilegedAdminAccess: revocationChecked ? 'working' : 'blocked',
+    },
     authorizationBoundary: {
       role: isTrustedAdmin ? 'admin' : 'user',
       accountStateEnforced: false,
+      privilegedOperationsBlocked: !revocationChecked,
       note:
-        'Firebase ID token verified. Server-side Firestore account state (suspension/deactivation) and admin custom-claim enforcement will be completed in Task 1.2+.',
+        'Basic Firebase JWT signature and claims verified against project linisgo-mobile. Privileged Firebase Admin operations (getUser, revocation checking, custom-claim assignment, and server-side Firestore writes) remain blocked until authorized backend credentials are configured.',
     },
   };
 
