@@ -1,11 +1,13 @@
 import { FirebaseApp, getApp, getApps, initializeApp, deleteApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
+import { Firestore, getFirestore } from 'firebase/firestore';
 import { environment, FirebaseWebConfig } from '../../../environments/environment';
 
 export const FIREBASE_RUNTIME_CONFIG_STORAGE_KEY = 'linisgo_firebase_web_config_v1';
 
 let firebaseAppInstance: FirebaseApp | null = null;
 let firebaseAuthInstance: Auth | null = null;
+let firebaseFirestoreInstance: Firestore | null = null;
 
 /**
  * Resolves the active Firebase Web SDK configuration for `linisgo-mobile`.
@@ -174,7 +176,24 @@ export function getOrInitializeFirebaseAuth(): Auth | null {
 }
 
 /**
- * Re-initializes Firebase App & Auth if the runtime Web API key is updated.
+ * Initializes and returns the Firebase Cloud Firestore singleton instance for `(default)` database.
+ */
+export function getOrInitializeFirebaseFirestore(): Firestore | null {
+  if (firebaseFirestoreInstance) {
+    return firebaseFirestoreInstance;
+  }
+
+  const app = getOrInitializeFirebaseApp();
+  if (!app) {
+    return null;
+  }
+
+  firebaseFirestoreInstance = getFirestore(app);
+  return firebaseFirestoreInstance;
+}
+
+/**
+ * Re-initializes Firebase App, Auth & Firestore if the runtime Web API key is updated.
  */
 export async function reinitializeFirebaseWithUpdatedConfig(): Promise<Auth | null> {
   try {
@@ -188,5 +207,6 @@ export async function reinitializeFirebaseWithUpdatedConfig(): Promise<Auth | nu
   }
   firebaseAppInstance = null;
   firebaseAuthInstance = null;
+  firebaseFirestoreInstance = null;
   return getOrInitializeFirebaseAuth();
 }

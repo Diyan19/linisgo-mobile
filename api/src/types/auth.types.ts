@@ -20,10 +20,11 @@ export interface VerifiedUserIdentity {
 }
 
 /**
- * Express Request extended with the verified Firebase user identity.
+ * Express Request extended with the verified Firebase user identity and raw verified Bearer ID token.
  */
 export interface AuthenticatedRequest extends Request {
   authenticatedUser?: VerifiedUserIdentity;
+  verifiedBearerToken?: string;
 }
 
 /**

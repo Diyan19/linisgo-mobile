@@ -7,15 +7,20 @@ import {
   FirestoreRepositoryBundle,
 } from '../repositories/firestore.repository.js';
 import { defaultTokenVerifier } from '../services/auth-verification.service.js';
+import {
+  defaultFirestoreUserRestService,
+  FirestoreUserRestService,
+} from '../services/firestore-user-rest.service.js';
 import { TokenVerifier } from '../types/auth.types.js';
 
 export function createFirestorePreparedRouter(
   verifier: TokenVerifier = defaultTokenVerifier,
-  repos: FirestoreRepositoryBundle = defaultFirestoreRepositories
+  repos: FirestoreRepositoryBundle = defaultFirestoreRepositories,
+  userRestService: FirestoreUserRestService = defaultFirestoreUserRestService
 ): Router {
   const router = Router();
   const authenticate = createAuthenticateMiddleware(verifier);
-  const ctrl = createFirestorePreparedControllers(repos);
+  const ctrl = createFirestorePreparedControllers(repos, userRestService);
 
   // Public discovery & schema readiness endpoints
   router.get('/locations', ctrl.getLocationsCatalog);
@@ -26,13 +31,16 @@ export function createFirestorePreparedRouter(
   router.all('/schema/smoke-test', (req, res, next) => {
     ctrl.rejectHttpSmokeTest(req, res).catch(next);
   });
+  router.get('/profiles/public', (req, res, next) => {
+    ctrl.listPublicProfiles(req, res).catch(next);
+  });
   router.get('/posts', (req, res, next) => {
     ctrl.listPublicPosts(req, res).catch(next);
   });
 
-  // Authenticated user endpoints (validated first; gated by Firestore credentials until authorized)
-  router.post('/posts', authenticate, (req, res, next) => {
-    ctrl.createOrUpdatePost(req, res).catch(next);
+  // Authenticated user profile & post endpoints (backed by Firestore v1 REST API with user ID token)
+  router.get('/profiles/me', authenticate, (req, res, next) => {
+    ctrl.getOwnProfile(req, res).catch(next);
   });
   router.put('/profiles/me', authenticate, (req, res, next) => {
     ctrl.updateOwnProfile(req, res).catch(next);
@@ -40,6 +48,20 @@ export function createFirestorePreparedRouter(
   router.patch('/profiles/me/account-state', authenticate, (req, res, next) => {
     ctrl.updateOwnAccountState(req, res).catch(next);
   });
+  router.get('/posts/mine', authenticate, (req, res, next) => {
+    ctrl.listOwnPosts(req, res).catch(next);
+  });
+  router.get('/posts/:postId', (req, res, next) => {
+    ctrl.getPostById(req, res).catch(next);
+  });
+  router.post('/posts', authenticate, (req, res, next) => {
+    ctrl.createOrUpdatePost(req, res).catch(next);
+  });
+  router.patch('/posts/:postId/lifecycle', authenticate, (req, res, next) => {
+    ctrl.updateOwnPostLifecycle(req, res).catch(next);
+  });
+
+  // Privileged server-only endpoints (safely gated until trusted Admin credentials are configured)
   router.post('/bookmarks/users/:targetUid', authenticate, (req, res, next) => {
     ctrl.saveUserBookmark(req, res).catch(next);
   });

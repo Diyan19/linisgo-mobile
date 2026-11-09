@@ -11,92 +11,511 @@ service cloud.firestore {
     }
 
     // ============================================================================
-    // 1. HARDENED HELPER FUNCTIONS
+    // 1. HARDENED HELPER FUNCTIONS & ACCOUNT-STATE GATES
     // ============================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidOrientalMindoroMunicipalityId(id) {
+      return id is string && id in [
+        'calapan-city',
+        'puerto-galera',
+        'san-teodoro',
+        'baco',
+        'naujan',
+        'victoria',
+        'socorro',
+        'pola',
+        'pinamalayan',
+        'gloria',
+        'bansud',
+        'bongabong',
+        'roxas',
+        'mansalay',
+        'bulalacao'
+      ];
+    }
+
+    function incoming() {
+      return request.resource.data;
     }
 
     function existing() {
       return resource.data;
     }
 
-    // Public profile visibility check:
-    // Must be explicitly marked publicVisible == true, visibilityState == 'public',
-    // and authorAccountState == 'active' (excludes deactivated, suspended, and deleting users).
+    // Enforces that the signed-in caller is not suspended, deactivated, or pending deletion.
+    // Newly registered users without an /accountStates/{uid} document default to active.
+    // Reconciles both accountStates.state and accountStates.accountState against the backend data model.
+    function isCallerAccountActive() {
+      return isSignedIn()
+        && (
+          !exists(/databases/$(database)/documents/accountStates/$(request.auth.uid)) ||
+          (
+            ('state' in get(/databases/$(database)/documents/accountStates/$(request.auth.uid)).data
+              ? get(/databases/$(database)/documents/accountStates/$(request.auth.uid)).data.state == 'active'
+              : true)
+            &&
+            ('accountState' in get(/databases/$(database)/documents/accountStates/$(request.auth.uid)).data
+              ? get(/databases/$(database)/documents/accountStates/$(request.auth.uid)).data.accountState == 'active'
+              : true)
+          )
+        );
+    }
+
+    // Public profile discovery check:
+    // Matches the exact equality filters used by public list/onSnapshot queries:
+    // where('publicVisible', '==', true), where('visibilityState', '==', 'public'),
+    // where('authorAccountState', '==', 'active').
     function isPubliclyDiscoverableProfile(data) {
       return data.publicVisible == true
         && data.visibilityState == 'public'
-        && data.authorAccountState == 'active'
-        && (data.profileTag == 'client' || data.profileTag == 'provider');
+        && data.authorAccountState == 'active';
     }
 
-    // Shared post public visibility check:
-    // Separates:
-    // 1. publicationState ('published' vs 'draft')
-    // 2. lifecycleStatus ('open' for request; 'active' for offer — excludes 'closed' and 'archived')
-    // 3. moderationStatus ('none' — posts publish immediately; after-publication 'flagged'/'hidden'/'removed' are excluded)
-    // 4. authorAccountState ('active')
+    // Validates PublicProfileDocument shape, types, bounds, and privacy invariants:
+    // - Never allows registrationEmail or homeMunicipalityId in publicProfiles
+    // - Forces authorAccountState == 'active' and consistent publicVisible boolean
+    function isValidPublicProfile(data, uid) {
+      return data.keys().hasAll([
+          'uid',
+          'displayName',
+          'biography',
+          'profilePhotoUrl',
+          'profileTag',
+          'availability',
+          'serviceAreaMunicipalityIds',
+          'publicPhone',
+          'publicFacebookUrl',
+          'visibilityState',
+          'authorAccountState',
+          'publicVisible',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'biography',
+          'profilePhotoUrl',
+          'profileTag',
+          'availability',
+          'serviceAreaMunicipalityIds',
+          'publicPhone',
+          'publicFacebookUrl',
+          'visibilityState',
+          'authorAccountState',
+          'publicVisible',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.uid == uid
+        && data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80
+        && data.biography is string && data.biography.size() <= 1000
+        && (data.profilePhotoUrl == null || (data.profilePhotoUrl is string && data.profilePhotoUrl.size() <= 500))
+        && (data.profileTag == 'client' || data.profileTag == 'provider')
+        && data.availability is string && data.availability.size() >= 1 && data.availability.size() <= 120
+        && data.serviceAreaMunicipalityIds is list && data.serviceAreaMunicipalityIds.size() <= 15
+        && (
+          data.serviceAreaMunicipalityIds.size() == 0 ||
+          isValidOrientalMindoroMunicipalityId(data.serviceAreaMunicipalityIds[0])
+        )
+        && (data.publicPhone == null || (data.publicPhone is string && data.publicPhone.size() <= 40))
+        && (data.publicFacebookUrl == null || (data.publicFacebookUrl is string && data.publicFacebookUrl.size() <= 250))
+        && (data.visibilityState == 'public' || data.visibilityState == 'hidden')
+        && data.authorAccountState == 'active'
+        && data.publicVisible is bool
+        && data.publicVisible == (data.visibilityState == 'public' && data.authorAccountState == 'active')
+        && data.createdAt is string && data.createdAt.size() >= 10 && data.createdAt.size() <= 40
+        && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40;
+    }
+
+    // Validates PrivateProfileDocument shape and owner-only PII isolation
+    function isValidPrivateProfile(data, uid) {
+      return data.keys().hasAll([
+          'uid',
+          'registrationEmail',
+          'emailVerified',
+          'phoneNumber',
+          'facebookUrl',
+          'showPhonePublicly',
+          'showFacebookPublicly',
+          'mapConsent',
+          'mapMunicipalityId',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'registrationEmail',
+          'emailVerified',
+          'phoneNumber',
+          'facebookUrl',
+          'showPhonePublicly',
+          'showFacebookPublicly',
+          'mapConsent',
+          'mapMunicipalityId',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.uid == uid
+        && data.registrationEmail is string && data.registrationEmail.size() <= 254
+        && data.emailVerified is bool
+        && data.emailVerified == request.auth.token.get('email_verified', false)
+        && (data.phoneNumber == null || (data.phoneNumber is string && data.phoneNumber.size() <= 40))
+        && (data.facebookUrl == null || (data.facebookUrl is string && data.facebookUrl.size() <= 250))
+        && data.showPhonePublicly is bool
+        && data.showFacebookPublicly is bool
+        && data.mapConsent is bool
+        && (
+          (data.mapConsent == false && data.mapMunicipalityId == null) ||
+          (data.mapConsent == true && isValidOrientalMindoroMunicipalityId(data.mapMunicipalityId))
+        )
+        && data.createdAt is string && data.createdAt.size() >= 10 && data.createdAt.size() <= 40
+        && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40;
+    }
+
+    // Shared post public discovery check:
+    // Matches the 4 equality filters used by single-field-indexed public queries:
+    // where('publicVisible', '==', true), where('publicationState', '==', 'published'),
+    // where('moderationStatus', '==', 'none'), where('authorAccountState', '==', 'active').
+    // Note: isValidPostVisibilityInvariant() guarantees publicVisible == true is ONLY possible
+    // when (postType == 'request' && lifecycleStatus == 'open') || (postType == 'offer' && lifecycleStatus == 'active').
     function isPubliclyDiscoverablePost(data) {
       return data.publicVisible == true
         && data.publicationState == 'published'
+        && data.moderationStatus == 'none'
+        && data.authorAccountState == 'active';
+    }
+
+    // Enforces that publicVisible is true IF AND ONLY IF the post is published, unmoderated,
+    // authored by an active account, and in an open/active lifecycle state.
+    function isValidPostVisibilityInvariant(data) {
+      return data.publicVisible == (
+        data.publicationState == 'published'
         && data.moderationStatus == 'none'
         && data.authorAccountState == 'active'
         && (
           (data.postType == 'request' && data.lifecycleStatus == 'open') ||
           (data.postType == 'offer' && data.lifecycleStatus == 'active')
-        );
+        )
+      );
+    }
+
+    // Validates PostDocument structure, Oriental Mindoro location rules, and lifecycle separation
+    function isValidPostPayload(data, postId, ownerUid) {
+      return data.keys().hasAll([
+          'id',
+          'authorUid',
+          'authorDisplayName',
+          'authorProfileTag',
+          'postType',
+          'title',
+          'description',
+          'cleaningCategory',
+          'publicationState',
+          'lifecycleStatus',
+          'moderationStatus',
+          'moderationReferenceId',
+          'authorAccountState',
+          'publicVisible',
+          'targetMunicipalityId',
+          'coverageAreaIds',
+          'priceOrBudget',
+          'photoUrls',
+          'publicAreaDescription',
+          'scheduleNote',
+          'createdAt',
+          'updatedAt',
+          'publishedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'authorUid',
+          'authorDisplayName',
+          'authorProfileTag',
+          'postType',
+          'title',
+          'description',
+          'cleaningCategory',
+          'publicationState',
+          'lifecycleStatus',
+          'moderationStatus',
+          'moderationReferenceId',
+          'authorAccountState',
+          'publicVisible',
+          'targetMunicipalityId',
+          'coverageAreaIds',
+          'priceOrBudget',
+          'photoUrls',
+          'publicAreaDescription',
+          'scheduleNote',
+          'createdAt',
+          'updatedAt',
+          'publishedAt'
+        ])
+        && data.id == postId
+        && data.authorUid == ownerUid
+        && data.authorDisplayName is string && data.authorDisplayName.size() >= 1 && data.authorDisplayName.size() <= 80
+        && (data.authorProfileTag == 'client' || data.authorProfileTag == 'provider')
+        && (data.postType == 'request' || data.postType == 'offer')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.description is string && data.description.size() <= 2000
+        && (
+          data.publicationState == 'draft' ||
+          (data.title.size() >= 3 && data.description.size() >= 10)
+        )
+        && data.cleaningCategory is string && data.cleaningCategory.size() >= 1 && data.cleaningCategory.size() <= 80
+        && (data.publicationState == 'draft' || data.publicationState == 'published')
+        && (
+          (data.postType == 'request' && (data.lifecycleStatus == 'open' || data.lifecycleStatus == 'closed')) ||
+          (data.postType == 'offer' && (data.lifecycleStatus == 'active' || data.lifecycleStatus == 'archived'))
+        )
+        && (data.moderationStatus == 'none' || data.moderationStatus == 'flagged' || data.moderationStatus == 'hidden' || data.moderationStatus == 'removed')
+        && (data.moderationReferenceId == null || (data.moderationReferenceId is string && data.moderationReferenceId.size() <= 128))
+        && data.authorAccountState == 'active'
+        && data.publicVisible is bool
+        && isValidPostVisibilityInvariant(data)
+        && (data.targetMunicipalityId == null || isValidOrientalMindoroMunicipalityId(data.targetMunicipalityId))
+        && data.coverageAreaIds is list && data.coverageAreaIds.size() <= 15
+        && (
+          data.publicationState == 'draft' ||
+          (data.postType == 'request' && isValidOrientalMindoroMunicipalityId(data.targetMunicipalityId) && data.coverageAreaIds.size() == 0) ||
+          (data.postType == 'offer' && data.targetMunicipalityId == null && data.coverageAreaIds.size() >= 1 && isValidOrientalMindoroMunicipalityId(data.coverageAreaIds[0]))
+        )
+        && (data.priceOrBudget == null || (data.priceOrBudget is string && data.priceOrBudget.size() <= 80))
+        && data.photoUrls is list && data.photoUrls.size() <= 5
+        && (data.publicAreaDescription == null || (data.publicAreaDescription is string && data.publicAreaDescription.size() <= 160))
+        && (data.scheduleNote == null || (data.scheduleNote is string && data.scheduleNote.size() <= 160))
+        && data.createdAt is string && data.createdAt.size() >= 10 && data.createdAt.size() <= 40
+        && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40
+        && (data.publishedAt == null || (data.publishedAt is string && data.publishedAt.size() >= 10 && data.publishedAt.size() <= 40));
     }
 
     // Opt-in approximate map marker visibility check:
-    // Requires explicit mapConsent == true, publicVisible == true, and active account state.
+    // Matches the 3 equality filters used by public list/onSnapshot queries:
+    // where('publicVisible', '==', true), where('mapConsent', '==', true),
+    // where('authorAccountState', '==', 'active').
     function isPubliclyDiscoverableMapMarker(data) {
       return data.publicVisible == true
         && data.mapConsent == true
         && data.authorAccountState == 'active';
     }
 
+    function isValidPublicMapMarker(data, uid) {
+      return data.keys().hasAll([
+          'uid',
+          'displayName',
+          'profileTag',
+          'municipalityId',
+          'municipalityName',
+          'approximateLat',
+          'approximateLng',
+          'mapConsent',
+          'authorAccountState',
+          'publicVisible',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'profileTag',
+          'municipalityId',
+          'municipalityName',
+          'approximateLat',
+          'approximateLng',
+          'mapConsent',
+          'authorAccountState',
+          'publicVisible',
+          'updatedAt'
+        ])
+        && data.uid == uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && (data.profileTag == 'client' || data.profileTag == 'provider')
+        && isValidOrientalMindoroMunicipalityId(data.municipalityId)
+        && data.municipalityName is string && data.municipalityName.size() >= 2 && data.municipalityName.size() <= 80
+        && (data.approximateLat is number) && data.approximateLat >= 12.0 && data.approximateLat <= 14.0
+        && (data.approximateLng is number) && data.approximateLng >= 120.5 && data.approximateLng <= 122.0
+        && data.mapConsent == true
+        && data.authorAccountState == 'active'
+        && data.publicVisible == true
+        && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40;
+    }
+
     // ============================================================================
-    // 2. PUBLIC DISCOVERY COLLECTIONS (READ-ONLY FOR VISIBLE PUBLIC RECORDS)
-    //    All mutations are strictly denied from clients and routed via REST API.
+    // 2. PUBLIC DISCOVERY & SELF-OWNED PROFILE/POST COLLECTIONS
     // ============================================================================
 
     // Collection 1: publicProfiles
     match /publicProfiles/{uid} {
-      allow get: if isValidId(uid) && isPubliclyDiscoverableProfile(existing());
-      allow list: if isPubliclyDiscoverableProfile(existing());
-      allow create, update, delete: if false;
+      allow get: if isValidId(uid) && (
+        resource == null ||
+        isOwner(uid) ||
+        isPubliclyDiscoverableProfile(existing())
+      );
+      allow list: if resource != null && isPubliclyDiscoverableProfile(existing());
+      allow create: if isOwner(uid) && isValidId(uid) && isValidPublicProfile(incoming(), uid) && isCallerAccountActive();
+      allow update: if isOwner(uid) && isValidId(uid) && isValidPublicProfile(incoming(), uid)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().authorAccountState == existing().authorAccountState
+        && existing().authorAccountState == 'active'
+        && isCallerAccountActive()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'uid',
+          'displayName',
+          'biography',
+          'profilePhotoUrl',
+          'profileTag',
+          'availability',
+          'serviceAreaMunicipalityIds',
+          'publicPhone',
+          'publicFacebookUrl',
+          'visibilityState',
+          'authorAccountState',
+          'publicVisible',
+          'createdAt',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // Collection 2: privateProfiles (Owner-only PII, registration email, private contact & map settings)
+    match /privateProfiles/{uid} {
+      allow get: if isOwner(uid) && isValidId(uid);
+      allow list: if false;
+      allow create: if isOwner(uid) && isValidId(uid) && isValidPrivateProfile(incoming(), uid) && isCallerAccountActive();
+      allow update: if isOwner(uid) && isValidId(uid) && isValidPrivateProfile(incoming(), uid)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && isCallerAccountActive()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'uid',
+          'registrationEmail',
+          'emailVerified',
+          'phoneNumber',
+          'facebookUrl',
+          'showPhonePublicly',
+          'showFacebookPublicly',
+          'mapConsent',
+          'mapMunicipalityId',
+          'createdAt',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // Collection 3: accountStates (Trusted server-controlled lifecycle, suspension & deletion cleanup)
+    // Users may read their own account state, but can NEVER create, modify, or lift suspensions.
+    match /accountStates/{uid} {
+      allow get: if isOwner(uid) && isValidId(uid);
+      allow list, create, update, delete: if false;
     }
 
     // Collection 4: posts (Shared Service Requests & Service Offers)
     match /posts/{postId} {
-      allow get: if isValidId(postId) && isPubliclyDiscoverablePost(existing());
-      allow list: if isPubliclyDiscoverablePost(existing());
-      allow create, update, delete: if false;
+      allow get: if isValidId(postId) && (
+        resource == null ||
+        isPubliclyDiscoverablePost(existing()) ||
+        (isSignedIn() && existing().authorUid == request.auth.uid)
+      );
+      allow list: if resource != null && (
+        isPubliclyDiscoverablePost(existing()) ||
+        (isSignedIn() && existing().authorUid == request.auth.uid)
+      );
+      allow create: if isSignedIn()
+        && isValidId(postId)
+        && isValidPostPayload(incoming(), postId, request.auth.uid)
+        && incoming().moderationStatus == 'none'
+        && incoming().moderationReferenceId == null
+        && incoming().authorAccountState == 'active'
+        && isCallerAccountActive();
+      allow update: if isSignedIn()
+        && isValidId(postId)
+        && existing().authorUid == request.auth.uid
+        && existing().moderationStatus == 'none'
+        && existing().authorAccountState == 'active'
+        && isValidPostPayload(incoming(), postId, request.auth.uid)
+        && incoming().id == existing().id
+        && incoming().authorUid == existing().authorUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().moderationStatus == existing().moderationStatus
+        && incoming().moderationReferenceId == existing().moderationReferenceId
+        && incoming().authorAccountState == existing().authorAccountState
+        && isCallerAccountActive()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'id',
+          'authorUid',
+          'authorDisplayName',
+          'authorProfileTag',
+          'postType',
+          'title',
+          'description',
+          'cleaningCategory',
+          'publicationState',
+          'lifecycleStatus',
+          'moderationStatus',
+          'moderationReferenceId',
+          'authorAccountState',
+          'publicVisible',
+          'targetMunicipalityId',
+          'coverageAreaIds',
+          'priceOrBudget',
+          'photoUrls',
+          'publicAreaDescription',
+          'scheduleNote',
+          'createdAt',
+          'updatedAt',
+          'publishedAt'
+        ]);
+      allow delete: if false;
     }
 
     // Collection 10: publicMapMarkers (Opt-in approximate municipality markers)
     match /publicMapMarkers/{uid} {
-      allow get: if isValidId(uid) && isPubliclyDiscoverableMapMarker(existing());
-      allow list: if isPubliclyDiscoverableMapMarker(existing());
-      allow create, update, delete: if false;
+      allow get: if isValidId(uid) && (
+        resource == null ||
+        isOwner(uid) ||
+        isPubliclyDiscoverableMapMarker(existing())
+      );
+      allow create: if isOwner(uid) && isValidId(uid) && isValidPublicMapMarker(incoming(), uid) && isCallerAccountActive()
+        && exists(/databases/$(database)/documents/privateProfiles/$(uid))
+        && get(/databases/$(database)/documents/privateProfiles/$(uid)).data.mapConsent == true;
+      allow update: if isOwner(uid) && isValidId(uid) && isValidPublicMapMarker(incoming(), uid)
+        && incoming().uid == existing().uid
+        && incoming().authorAccountState == existing().authorAccountState
+        && existing().authorAccountState == 'active'
+        && isCallerAccountActive()
+        && exists(/databases/$(database)/documents/privateProfiles/$(uid))
+        && get(/databases/$(database)/documents/privateProfiles/$(uid)).data.mapConsent == true
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'uid',
+          'displayName',
+          'profileTag',
+          'municipalityId',
+          'municipalityName',
+          'approximateLat',
+          'approximateLng',
+          'mapConsent',
+          'authorAccountState',
+          'publicVisible',
+          'updatedAt'
+        ]);
+      allow delete: if isOwner(uid) && isValidId(uid) && isCallerAccountActive();
     }
 
     // ============================================================================
-    // 3. CANONICAL PRIVATE & SERVER-MEDIATED COLLECTIONS (STRICT BROWSER ISOLATION)
-    //    All reads and writes are mediated exclusively by the Private REST API.
-    //    No duplicate subcollections exist under /privateProfiles/{uid}.
+    // 3. SENSITIVE & PRIVILEGED COLLECTIONS (STRICT ISOLATION)
     // ============================================================================
-
-    // Collection 2: privateProfiles (PII, registration email, private contact & map settings)
-    match /privateProfiles/{uid} {
-      allow get, list, create, update, delete: if false;
-    }
-
-    // Collection 3: accountStates (Trusted server-controlled lifecycle, suspension & deletion cleanup)
-    match /accountStates/{uid} {
-      allow get, list, create, update, delete: if false;
-    }
 
     // Collection 5: savedUsers (Canonical top-level bookmark path: ${ownerUid}_${targetUid})
     match /savedUsers/{bookmarkId} {
@@ -108,7 +527,7 @@ service cloud.firestore {
       allow get, list, create, update, delete: if false;
     }
 
-    // Collection 7: reports (Private user moderation reports: pending | under_review | resolved | dismissed)
+    // Collection 7: reports (Private user moderation reports)
     match /reports/{reportId} {
       allow get, list, create, update, delete: if false;
     }

@@ -1,4 +1,19 @@
-import { Injectable, inject, signal, computed, effect } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Injectable, OnDestroy, inject, signal, computed, effect } from '@angular/core';
+import {
+  and,
+  collection,
+  doc,
+  getDocFromServer,
+  limit,
+  onSnapshot,
+  or,
+  query,
+  Unsubscribe,
+  where,
+} from 'firebase/firestore';
+import { firstValueFrom } from 'rxjs';
+import { getOrInitializeFirebaseAuth, getOrInitializeFirebaseFirestore } from '../config/firebase.config';
 import { CleaningPost, PostCategory, PostStatus, PostType } from '../../shared/models/post.model';
 import { UserProfile, UserProfileTag, SuspensionType, UserAccountState } from '../../shared/models/user.model';
 import { ReportItem, AppealItem, ReportReason, ReportStatus, AppealStatus } from '../../shared/models/report.model';
@@ -8,10 +23,70 @@ import {
   OrientalMindoroLocation,
   LocationFilterMode,
   doesPostMatchLocationFilter,
+  getLocationById,
   getPostLocationSummary,
   isValidLocationId,
 } from '../../shared/models/location.model';
 import { AuthService } from './auth.service';
+import {
+  FirestorePostDto,
+  FirestorePrivateProfileDto,
+  FirestorePublicMapMarkerDto,
+  FirestorePublicProfileDto,
+  PrivateApiService,
+} from './private-api.service';
+
+export enum FirestoreOperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: FirestoreOperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function buildFirestoreErrorInfo(
+  error: unknown,
+  operationType: FirestoreOperationType,
+  path: string | null
+): FirestoreErrorInfo {
+  const auth = getOrInitializeFirebaseAuth();
+  const currentUser = auth?.currentUser;
+  return {
+    error: error instanceof Error ? error.message : String(error),
+    operationType,
+    path,
+    authInfo: {
+      userId: currentUser?.uid ?? null,
+      email: currentUser?.email ?? null,
+      emailVerified: currentUser?.emailVerified ?? null,
+      isAnonymous: currentUser?.isAnonymous ?? null,
+      tenantId: currentUser?.tenantId ?? null,
+      providerInfo:
+        currentUser?.providerData?.map(provider => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
+    },
+  };
+}
 
 export interface InAppNotification {
   id: string;
@@ -29,14 +104,59 @@ export interface MapAreaSummary {
   offerCount: number;
 }
 
+export interface PersistenceMutationResult<T = void> {
+  persisted: boolean;
+  error?: string;
+  value?: T;
+}
+
+const FRONTEND_TO_BACKEND_CATEGORY: Record<PostCategory, string> = {
+  General: 'General House Cleaning',
+  Deep: 'Deep Cleaning',
+  Kitchen: 'Kitchen & Bath Focus',
+  Bathroom: 'Kitchen & Bath Focus',
+  Laundry: 'Laundry & Ironing',
+  Other: 'Custom / Other',
+};
+
+function mapBackendCategoryToFrontend(raw: string): PostCategory {
+  const lower = (raw || '').toLowerCase();
+  if (lower.includes('deep')) return 'Deep';
+  if (lower.includes('kitchen')) return 'Kitchen';
+  if (lower.includes('bath')) return 'Bathroom';
+  if (lower.includes('laundry')) return 'Laundry';
+  if (lower.includes('custom') || lower.includes('other')) return 'Other';
+  return 'General';
+}
+
+function parsePriceAmount(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  const cleaned = String(raw).replace(/[^0-9.]/g, '');
+  const num = Number.parseFloat(cleaned);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
-export class PublicDataService {
+export class PublicDataService implements OnDestroy {
   private readonly STORAGE_DATA_KEY = 'linisgo_data_v3';
   private readonly authService = inject(AuthService);
+  private readonly privateApi = inject(PrivateApiService);
 
   readonly locations = ORIENTAL_MINDORO_LOCATIONS;
+
+  // Real-time Firestore listener handles (reused across navigation; never duplicated)
+  private postsUnsubscribe: Unsubscribe | null = null;
+  private profilesUnsubscribe: Unsubscribe | null = null;
+  private mapMarkersUnsubscribe: Unsubscribe | null = null;
+  private connectionTestedOnce = false;
+  private lastSyncedAuthUid: string | null = null;
+
+  readonly activeRealtimeListenerCountSignal = signal<number>(0);
+  readonly realtimeSyncStatusSignal = signal<'idle' | 'active' | 'rules_blocked' | 'error'>('idle');
+  readonly lastFirestoreErrorSignal = signal<string | null>(null);
+  readonly hasRealFirestoreDataSignal = signal<boolean>(false);
 
   // State Signals
   readonly usersSignal = signal<UserProfile[]>([]);
@@ -62,11 +182,6 @@ export class PublicDataService {
   readonly maxPriceFilter = signal<number | null>(null);
   readonly selectedSort = signal<'newest' | 'price-asc'>('newest');
 
-  /**
-   * Active actor ID:
-   * - Real Firebase UID when signed in via Firebase Authentication (never 'demo').
-   * - Falls back to 'demo' only when no real Firebase user session is active.
-   */
   readonly activeActorId = computed<string>(() => {
     const fbUser = this.authService.firebaseUser();
     return fbUser ? fbUser.uid : 'demo';
@@ -77,24 +192,26 @@ export class PublicDataService {
     return ['demo', 'ana', 'ben', 'mira', 'carlos'].includes(id);
   });
 
-  // Currently active user profile (local session state; real Firestore profile storage belongs to Task 1.1)
   readonly currentUser = computed(() => {
     const actorId = this.activeActorId();
     return this.usersSignal().find(u => u.id === actorId);
   });
 
-  // Active public posts (unmoderated and active author, not archived/draft)
   readonly publicPosts = computed(() => {
     const users = this.usersSignal();
     const activeUserIds = new Set(users.filter(u => u.state === 'active').map(u => u.id));
     return this.postsSignal().filter(
-      p => !p.moderated && activeUserIds.has(p.authorId) && p.status !== 'archived' && p.status !== 'draft'
+      p =>
+        !p.moderated &&
+        (activeUserIds.has(p.authorId) || !['demo', 'ana', 'ben', 'mira', 'carlos'].includes(p.authorId)) &&
+        p.status !== 'archived' &&
+        p.status !== 'draft' &&
+        p.status !== 'closed'
     );
   });
 
-  // Filtered posts based on active query, location, and chips
   readonly filteredPosts = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
+    const queryStr = this.searchQuery().toLowerCase().trim();
     const tag = this.selectedTag();
     const type = this.selectedType();
     const cat = this.selectedCategory();
@@ -118,20 +235,20 @@ export class PublicDataService {
 
         if (avail === 'available') {
           const author = usersMap.get(post.authorId);
-          if (!author || !author.available) return false;
+          if (author && !author.available) return false;
         }
 
         if (maxPrice !== null && maxPrice > 0) {
           if (post.amount == null || post.amount > maxPrice) return false;
         }
 
-        if (query) {
-          const matchTitle = post.title.toLowerCase().includes(query);
-          const matchDesc = post.description.toLowerCase().includes(query);
-          const matchCat = post.category.toLowerCase().includes(query);
-          const matchAuthor = post.authorName.toLowerCase().includes(query);
+        if (queryStr) {
+          const matchTitle = post.title.toLowerCase().includes(queryStr);
+          const matchDesc = post.description.toLowerCase().includes(queryStr);
+          const matchCat = post.category.toLowerCase().includes(queryStr);
+          const matchAuthor = post.authorName.toLowerCase().includes(queryStr);
           const locSummary = getPostLocationSummary(post).toLowerCase();
-          const matchLoc = locSummary.includes(query);
+          const matchLoc = locSummary.includes(queryStr);
           if (!matchTitle && !matchDesc && !matchCat && !matchAuthor && !matchLoc) return false;
         }
         return true;
@@ -144,9 +261,8 @@ export class PublicDataService {
       });
   });
 
-  // Filtered users (publicly discoverable: active only)
   readonly filteredUsers = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
+    const queryStr = this.searchQuery().toLowerCase().trim();
     const tag = this.selectedTag();
     const locId = this.selectedLocationId();
     const avail = this.selectedAvailability();
@@ -168,22 +284,20 @@ export class PublicDataService {
             return false;
           }
         }
-        if (query) {
-          const matchName = user.name.toLowerCase().includes(query);
-          const matchBio = user.bio.toLowerCase().includes(query);
-          const matchLoc = user.approxLocation?.label?.toLowerCase().includes(query) ?? false;
+        if (queryStr) {
+          const matchName = user.name.toLowerCase().includes(queryStr);
+          const matchBio = user.bio.toLowerCase().includes(queryStr);
+          const matchLoc = user.approxLocation?.label?.toLowerCase().includes(queryStr) ?? false;
           if (!matchName && !matchBio && !matchLoc) return false;
         }
         return true;
       });
   });
 
-  // Map-visible users (active + mapConsent + location)
   readonly mapVisibleUsers = computed(() => {
     return this.filteredUsers().filter(u => u.mapConsent && u.approxLocation);
   });
 
-  // Area-based post discovery summaries across Oriental Mindoro municipalities
   readonly mapAreaSummaries = computed<MapAreaSummary[]>(() => {
     const posts = this.filteredPosts();
     return this.locations
@@ -203,8 +317,6 @@ export class PublicDataService {
       .filter(item => item.posts.length > 0);
   });
 
-  // Distinct count of filtered posts that have at least one valid municipality association
-  // Ensures multi-municipality Service Offers are NEVER counted multiple times in overall totals
   readonly distinctMappedPostsCount = computed(() => {
     const uniquePostIds = new Set<string>();
     for (const area of this.mapAreaSummaries()) {
@@ -215,7 +327,6 @@ export class PublicDataService {
     return uniquePostIds.size;
   });
 
-  // Active user specific signals (scoped to activeActorId so real Firebase users do not inherit mock 'demo' records)
   readonly myPosts = computed(() => {
     const actorId = this.activeActorId();
     return this.postsSignal().filter(p => p.authorId === actorId);
@@ -266,7 +377,6 @@ export class PublicDataService {
     return this.appealsSignal().filter(a => a.appellantId === actorId);
   });
 
-  // Admin specific computed statistics
   readonly adminStats = computed(() => {
     const users = this.usersSignal();
     const posts = this.postsSignal();
@@ -289,53 +399,684 @@ export class PublicDataService {
 
   constructor() {
     this.loadInitialData();
+    this.startRealtimeDiscovery();
 
-    // Ensure real Firebase users get a clean, isolated local session profile using their Firebase UID
-    // without inheriting mock 'demo' posts, saved items, reports, or appeals.
     effect(
       () => {
         const fbUser = this.authService.firebaseUser();
-        if (!fbUser) return;
+        if (!fbUser) {
+          this.lastSyncedAuthUid = null;
+          return;
+        }
 
         const uid = fbUser.uid;
-        const displayName = fbUser.displayName?.trim() || fbUser.email?.split('@')[0] || 'LinisGo Member';
-        const existing = this.usersSignal().find(u => u.id === uid);
+        if (this.lastSyncedAuthUid === uid) {
+          return;
+        }
+        this.lastSyncedAuthUid = uid;
+        void this.syncAuthenticatedUserWithFirestore(uid, fbUser.displayName, fbUser.email);
+      },
+      { allowSignalWrites: true }
+    );
+  }
 
-        if (!existing) {
-          const today = new Date().toISOString().slice(0, 10);
-          const newProfile: UserProfile = {
+  ngOnDestroy(): void {
+    this.stopRealtimeDiscovery();
+  }
+
+  /**
+   * Returns the current number of active Firestore `onSnapshot` listeners.
+   * Used to verify zero duplicate subscriptions.
+   */
+  getActiveRealtimeListenerCount(): number {
+    let count = 0;
+    if (this.postsUnsubscribe) count++;
+    if (this.profilesUnsubscribe) count++;
+    if (this.mapMarkersUnsubscribe) count++;
+    return count;
+  }
+
+  private updateListenerCountSignal(): void {
+    this.activeRealtimeListenerCountSignal.set(this.getActiveRealtimeListenerCount());
+  }
+
+  /**
+   * Starts read-only Firebase Web SDK `onSnapshot` subscriptions for:
+   * 1. Published public posts (`/posts` with equality filters and `limit(50)`)
+   * 2. Public user profiles & availability (`/publicProfiles` with `limit(50)`)
+   * 3. Opt-in approximate map markers (`/publicMapMarkers` with `limit(50)`)
+   *
+   * Reuses existing listeners if already active — never creates duplicate subscriptions.
+   * If remote Firestore Security Rules on `linisgo-mobile` reject direct client queries with
+   * "Missing or insufficient permissions", listeners are stopped and the service falls back
+   * seamlessly to the Express REST API endpoints (`/api/posts` and `/api/profiles/public`).
+   */
+  startRealtimeDiscovery(): void {
+    const db = getOrInitializeFirebaseFirestore();
+    if (!db) {
+      void this.loadPublicDataViaRestFallback();
+      return;
+    }
+
+    if (!this.connectionTestedOnce) {
+      this.connectionTestedOnce = true;
+      void getDocFromServer(doc(db, 'publicProfiles', '_connection_probe')).catch(err => {
+        if (err instanceof Error && err.message.includes('the client is offline')) {
+          console.error('Please check your Firebase configuration.');
+        }
+      });
+    }
+
+    // 1. Reused real-time listener for published posts (equality-only AND query matches firestore.rules)
+    if (!this.postsUnsubscribe) {
+      const postsQuery = query(
+        collection(db, 'posts'),
+        where('publicVisible', '==', true),
+        where('publicationState', '==', 'published'),
+        where('moderationStatus', '==', 'none'),
+        where('authorAccountState', '==', 'active'),
+        limit(50)
+      );
+
+      this.postsUnsubscribe = onSnapshot(
+        postsQuery,
+        snapshot => {
+          this.realtimeSyncStatusSignal.set('active');
+          const livePosts: CleaningPost[] = [];
+          snapshot.forEach(docSnap => {
+            const dto = docSnap.data() as FirestorePostDto;
+            const isOpenOrActive =
+              (dto.postType === 'request' && dto.lifecycleStatus === 'open') ||
+              (dto.postType === 'offer' && dto.lifecycleStatus === 'active');
+            if (dto.publicVisible && dto.publicationState === 'published' && dto.moderationStatus === 'none' && isOpenOrActive) {
+              livePosts.push(this.mapFirestorePostDtoToCleaningPost(dto));
+            }
+          });
+
+          if (livePosts.length > 0) {
+            this.mergeLivePostsIntoStore(livePosts, true);
+          }
+        },
+        err => {
+          const errInfo = buildFirestoreErrorInfo(err, FirestoreOperationType.LIST, 'posts');
+          this.lastFirestoreErrorSignal.set(errInfo.error);
+          const isRulesBlocked = errInfo.error.includes('Missing or insufficient permissions');
+          this.realtimeSyncStatusSignal.set(isRulesBlocked ? 'rules_blocked' : 'error');
+          if (isRulesBlocked) {
+            // Stop polling listeners and switch to Express REST API fallback
+            this.stopRealtimeDiscovery();
+            void this.loadPublicDataViaRestFallback();
+          } else {
+            console.error('Firestore Error: ', JSON.stringify(errInfo));
+          }
+        }
+      );
+    }
+
+    // 2. Reused real-time listener for active public profiles & availability
+    if (!this.profilesUnsubscribe) {
+      const profilesQuery = query(
+        collection(db, 'publicProfiles'),
+        where('publicVisible', '==', true),
+        where('visibilityState', '==', 'public'),
+        where('authorAccountState', '==', 'active'),
+        limit(50)
+      );
+
+      this.profilesUnsubscribe = onSnapshot(
+        profilesQuery,
+        snapshot => {
+          this.realtimeSyncStatusSignal.set('active');
+          const liveProfiles: UserProfile[] = [];
+          snapshot.forEach(docSnap => {
+            const dto = docSnap.data() as FirestorePublicProfileDto;
+            liveProfiles.push(this.mapPublicProfileDtoToUserProfile(dto));
+          });
+
+          if (liveProfiles.length > 0) {
+            this.mergeLiveProfilesIntoStore(liveProfiles);
+          }
+        },
+        err => {
+          const errInfo = buildFirestoreErrorInfo(
+            err,
+            FirestoreOperationType.LIST,
+            'publicProfiles'
+          );
+          this.lastFirestoreErrorSignal.set(errInfo.error);
+          const isRulesBlocked = errInfo.error.includes('Missing or insufficient permissions');
+          if (isRulesBlocked) {
+            if (this.profilesUnsubscribe) {
+              this.profilesUnsubscribe();
+              this.profilesUnsubscribe = null;
+            }
+            this.updateListenerCountSignal();
+          } else {
+            console.error('Firestore Error: ', JSON.stringify(errInfo));
+          }
+        }
+      );
+    }
+
+    // 3. Reused real-time listener for opt-in approximate map markers
+    if (!this.mapMarkersUnsubscribe) {
+      const markersQuery = query(
+        collection(db, 'publicMapMarkers'),
+        where('publicVisible', '==', true),
+        where('mapConsent', '==', true),
+        where('authorAccountState', '==', 'active'),
+        limit(50)
+      );
+
+      this.mapMarkersUnsubscribe = onSnapshot(
+        markersQuery,
+        snapshot => {
+          const markersMap = new Map<string, FirestorePublicMapMarkerDto>();
+          snapshot.forEach(docSnap => {
+            const dto = docSnap.data() as FirestorePublicMapMarkerDto;
+            markersMap.set(dto.uid, dto);
+          });
+
+          if (markersMap.size > 0) {
+            this.usersSignal.update(users =>
+              users.map(u => {
+                const marker = markersMap.get(u.id);
+                if (!marker) return u;
+                return {
+                  ...u,
+                  mapConsent: true,
+                  approxLocation: {
+                    lat: marker.approximateLat,
+                    lng: marker.approximateLng,
+                    label: `${marker.municipalityName} (Approximate Area)`,
+                  },
+                };
+              })
+            );
+          }
+        },
+        err => {
+          const errInfo = buildFirestoreErrorInfo(
+            err,
+            FirestoreOperationType.LIST,
+            'publicMapMarkers'
+          );
+          const isRulesBlocked = errInfo.error.includes('Missing or insufficient permissions');
+          if (isRulesBlocked) {
+            if (this.mapMarkersUnsubscribe) {
+              this.mapMarkersUnsubscribe();
+              this.mapMarkersUnsubscribe = null;
+            }
+            this.updateListenerCountSignal();
+          } else {
+            console.error('Firestore Error: ', JSON.stringify(errInfo));
+          }
+        }
+      );
+    }
+
+    this.updateListenerCountSignal();
+  }
+
+  /**
+   * Fallback loader that queries public posts and public profiles from the Express REST API
+   * when real-time client SDK subscriptions are blocked by un-deployed Firestore rules.
+   */
+  async loadPublicDataViaRestFallback(): Promise<void> {
+    try {
+      const [postsRes, profilesRes] = await Promise.all([
+        firstValueFrom(this.privateApi.listPublicPosts()).catch(() => null),
+        firstValueFrom(this.privateApi.listPublicProfiles()).catch(() => null),
+      ]);
+
+      if (postsRes && Array.isArray(postsRes.posts) && postsRes.posts.length > 0) {
+        const mapped = postsRes.posts.map(dto => this.mapFirestorePostDtoToCleaningPost(dto));
+        this.mergeLivePostsIntoStore(mapped, true);
+      }
+
+      if (profilesRes && Array.isArray(profilesRes.profiles) && profilesRes.profiles.length > 0) {
+        const markersMap = new Map(
+          (profilesRes.mapMarkers || []).map(m => [m.uid, m])
+        );
+        const mapped = profilesRes.profiles.map(p =>
+          this.mapPublicProfileDtoToUserProfile(p, null, markersMap.get(p.uid) || null)
+        );
+        this.mergeLiveProfilesIntoStore(mapped);
+      }
+    } catch {
+      // Retain seeded local store silently
+    }
+  }
+
+  /**
+   * Unsubscribes all active Firestore `onSnapshot` listeners cleanly.
+   */
+  stopRealtimeDiscovery(): void {
+    if (this.postsUnsubscribe) {
+      this.postsUnsubscribe();
+      this.postsUnsubscribe = null;
+    }
+    if (this.profilesUnsubscribe) {
+      this.profilesUnsubscribe();
+      this.profilesUnsubscribe = null;
+    }
+    if (this.mapMarkersUnsubscribe) {
+      this.mapMarkersUnsubscribe();
+      this.mapMarkersUnsubscribe = null;
+    }
+    this.updateListenerCountSignal();
+  }
+
+  /**
+   * Loads the signed-in user's profile and own posts from Cloud Firestore via the Express REST API.
+   * If the user has just registered and has no Firestore profile yet, attempts to create their initial
+   * profile document via `PUT /api/profiles/me`.
+   */
+  async syncAuthenticatedUserWithFirestore(
+    uid: string,
+    fallbackDisplayName?: string | null,
+    fallbackEmail?: string | null
+  ): Promise<void> {
+    const cleanName =
+      fallbackDisplayName?.trim() || fallbackEmail?.split('@')[0] || 'LinisGo Member';
+
+    try {
+      const bundle = await firstValueFrom(this.privateApi.getOwnProfileBundle());
+      if (bundle.publicProfile) {
+        const mergedProfile = this.mapPublicProfileDtoToUserProfile(
+          bundle.publicProfile,
+          bundle.privateProfile,
+          bundle.mapMarker
+        );
+        this.upsertUserInSignal(mergedProfile, true);
+      } else {
+        // Newly registered user: attempt to persist initial profile to Firestore via REST API
+        const created = await firstValueFrom(
+          this.privateApi.updateOwnProfileBundle({
+            displayName: cleanName.length >= 2 ? cleanName : 'LinisGo User',
+            biography: 'LinisGo Finder community member in Oriental Mindoro.',
+            profileTag: 'client',
+            availability: 'Available',
+            serviceAreaMunicipalityIds: ['calapan-city'],
+            phoneNumber: null,
+            facebookUrl: null,
+            showPhonePublicly: false,
+            showFacebookPublicly: false,
+            mapConsent: false,
+            mapMunicipalityId: null,
+          })
+        );
+        if (created.persisted && created.publicProfile) {
+          const mergedProfile = this.mapPublicProfileDtoToUserProfile(
+            created.publicProfile,
+            created.privateProfile,
+            created.mapMarker
+          );
+          this.upsertUserInSignal(mergedProfile, true);
+        }
+      }
+    } catch (err: unknown) {
+      this.recordRestError(err, 'profiles/me');
+      // Provide an in-memory session placeholder without claiming Firestore persistence succeeded
+      const existing = this.usersSignal().find(u => u.id === uid);
+      if (!existing) {
+        const today = new Date().toISOString().slice(0, 10);
+        this.usersSignal.update(list => [
+          {
             id: uid,
-            name: displayName,
+            name: cleanName,
             tag: 'client',
-            bio: 'Authenticated LinisGo Finder community member in Oriental Mindoro (Local Demo Profile — Firestore sync in Task 1.1).',
+            bio: '',
             contactPhone: '',
             contactFacebook: '',
             showPhone: false,
             showFacebook: false,
             mapConsent: false,
-            approxLocation: { lat: 13.4115, lng: 121.1803, label: 'Calapan City (Capital)' },
+            approxLocation: { lat: 13.4115, lng: 121.1803, label: 'Calapan City' },
             available: true,
             state: 'active',
             warningCount: 0,
             createdAt: today,
             updatedAt: today,
-          };
-          this.usersSignal.update(list => [newProfile, ...list]);
-          this.addNotificationForUser(
-            uid,
-            'Authenticated via Firebase Auth',
-            `Welcome, ${displayName}! Your session is authenticated with Firebase UID (${uid.slice(0, 8)}...). Posts and profile edits currently use the local demo store until Task 1.1 Private REST API integration.`
-          );
-          this.persist();
-        } else if (fbUser.displayName && existing.name !== fbUser.displayName && existing.name === fbUser.email?.split('@')[0]) {
-          this.usersSignal.update(list =>
-            list.map(u => (u.id === uid ? { ...u, name: fbUser.displayName!.trim() } : u))
-          );
-          this.persist();
+          },
+          ...list,
+        ]);
+      }
+    }
+
+    try {
+      const ownPostsRes = await firstValueFrom(this.privateApi.listOwnPosts());
+      if (Array.isArray(ownPostsRes.posts) && ownPostsRes.posts.length > 0) {
+        const mapped = ownPostsRes.posts.map(dto => this.mapFirestorePostDtoToCleaningPost(dto));
+        this.mergeLivePostsIntoStore(mapped, false);
+      }
+    } catch (err: unknown) {
+      this.recordRestError(err, 'posts/mine');
+    }
+  }
+
+  private mapPublicProfileDtoToUserProfile(
+    pub: FirestorePublicProfileDto,
+    priv?: FirestorePrivateProfileDto | null,
+    marker?: FirestorePublicMapMarkerDto | null
+  ): UserProfile {
+    const firstAreaId = pub.serviceAreaMunicipalityIds?.[0] || 'calapan-city';
+    const areaLoc = getLocationById(firstAreaId) || ORIENTAL_MINDORO_LOCATIONS[0];
+    const mapLoc = marker
+      ? {
+          lat: marker.approximateLat,
+          lng: marker.approximateLng,
+          label: `${marker.municipalityName} (Approximate Area)`,
         }
-      },
-      { allowSignalWrites: true }
-    );
+      : {
+          lat: areaLoc.centerLat,
+          lng: areaLoc.centerLng,
+          label: areaLoc.name,
+        };
+
+    return {
+      id: pub.uid,
+      name: pub.displayName,
+      tag: pub.profileTag === 'provider' ? 'provider' : 'client',
+      bio: pub.biography || '',
+      contactPhone: priv ? priv.phoneNumber || '' : pub.publicPhone || '',
+      contactFacebook: priv ? priv.facebookUrl || '' : pub.publicFacebookUrl || '',
+      showPhone: priv ? Boolean(priv.showPhonePublicly) : Boolean(pub.publicPhone),
+      showFacebook: priv ? Boolean(priv.showFacebookPublicly) : Boolean(pub.publicFacebookUrl),
+      mapConsent: priv ? Boolean(priv.mapConsent) : Boolean(marker?.mapConsent),
+      approxLocation: mapLoc,
+      available: (pub.availability || '').toLowerCase() !== 'unavailable',
+      state: (pub.authorAccountState as UserAccountState) || 'active',
+      warningCount: 0,
+      createdAt: (pub.createdAt || '').slice(0, 10),
+      updatedAt: (pub.updatedAt || '').slice(0, 10),
+    };
+  }
+
+  private mapFirestorePostDtoToCleaningPost(dto: FirestorePostDto): CleaningPost {
+    let status: PostStatus = 'open';
+    if (dto.publicationState === 'draft') {
+      status = 'draft';
+    } else if (dto.postType === 'request') {
+      status = dto.lifecycleStatus === 'closed' ? 'closed' : 'open';
+    } else {
+      status = dto.lifecycleStatus === 'archived' ? 'archived' : 'active';
+    }
+
+    return {
+      id: dto.id,
+      authorId: dto.authorUid,
+      authorName: dto.authorDisplayName || 'LinisGo User',
+      authorTag: dto.authorProfileTag === 'provider' ? 'provider' : 'client',
+      type: dto.postType,
+      title: dto.title,
+      description: dto.description,
+      category: mapBackendCategoryToFrontend(dto.cleaningCategory),
+      amount: parsePriceAmount(dto.priceOrBudget),
+      status,
+      targetLocationId: dto.targetMunicipalityId ?? null,
+      coverageAreaIds: Array.isArray(dto.coverageAreaIds) ? dto.coverageAreaIds : [],
+      optionalPublicAreaDescription: dto.publicAreaDescription ?? null,
+      moderated: dto.moderationStatus !== 'none',
+      createdAt: (dto.createdAt || '').slice(0, 10),
+      updatedAt: (dto.updatedAt || '').slice(0, 10),
+    };
+  }
+
+  private upsertUserInSignal(profile: UserProfile, markRealData = false): void {
+    this.usersSignal.update(users => {
+      const idx = users.findIndex(u => u.id === profile.id);
+      let updated: UserProfile[];
+      if (idx >= 0) {
+        updated = users.map(u => (u.id === profile.id ? profile : u));
+      } else {
+        updated = [profile, ...users];
+      }
+      if (markRealData) {
+        this.hasRealFirestoreDataSignal.set(true);
+      }
+      return updated;
+    });
+    this.persist();
+  }
+
+  private mergeLiveProfilesIntoStore(liveProfiles: UserProfile[]): void {
+    const liveMap = new Map(liveProfiles.map(u => [u.id, u]));
+    this.usersSignal.update(existing => {
+      // Once real Firestore profiles arrive, drop mock profiles ('ana', 'ben', 'mira', 'carlos')
+      const kept = existing.filter(
+        u => !['ana', 'ben', 'mira', 'carlos'].includes(u.id) && !liveMap.has(u.id)
+      );
+      return [...liveProfiles, ...kept];
+    });
+    this.hasRealFirestoreDataSignal.set(true);
+    this.persist();
+  }
+
+  private mergeLivePostsIntoStore(livePosts: CleaningPost[], removeMockPosts: boolean): void {
+    const liveMap = new Map(livePosts.map(p => [p.id, p]));
+    this.postsSignal.update(existing => {
+      const kept = existing.filter(p => {
+        if (liveMap.has(p.id)) return false;
+        if (removeMockPosts && ['p1', 'p2', 'p3', 'p4', 'p5'].includes(p.id)) {
+          return false;
+        }
+        return true;
+      });
+      return [...livePosts, ...kept];
+    });
+    this.hasRealFirestoreDataSignal.set(true);
+    this.persist();
+  }
+
+  private recordRestError(err: unknown, path: string): string {
+    let msg = 'Failed to persist changes to Cloud Firestore.';
+    if (err instanceof HttpErrorResponse) {
+      msg =
+        err.error?.message ||
+        err.message ||
+        `HTTP ${err.status}: Cloud Firestore operation on "${path}" failed.`;
+    } else if (err instanceof Error) {
+      msg = err.message;
+    }
+    this.lastFirestoreErrorSignal.set(msg);
+    return msg;
+  }
+
+  /**
+   * Persists the signed-in user's profile to Cloud Firestore via `PUT /api/profiles/me`.
+   * Never fakes a save if the backend or Firestore Security Rules reject the write.
+   */
+  async saveUserProfileAsync(data: {
+    name: string;
+    bio: string;
+    contactPhone?: string;
+    contactFacebook?: string;
+    available: boolean;
+  }): Promise<PersistenceMutationResult<UserProfile>> {
+    if (this.isMockActor()) {
+      this.updateUserProfile(data);
+      return { persisted: true, value: this.currentUser() };
+    }
+
+    const current = this.currentUser();
+    const mapLocLabel = (current?.approxLocation?.label || '').toLowerCase();
+    const matchedLoc =
+      ORIENTAL_MINDORO_LOCATIONS.find(l => mapLocLabel.includes(l.name.toLowerCase())) ||
+      ORIENTAL_MINDORO_LOCATIONS[0];
+
+    try {
+      const res = await firstValueFrom(
+        this.privateApi.updateOwnProfileBundle({
+          displayName: data.name.trim(),
+          biography: data.bio.trim(),
+          profileTag: current?.tag || 'client',
+          availability: data.available ? 'Available' : 'Unavailable',
+          serviceAreaMunicipalityIds: [matchedLoc.id],
+          phoneNumber: data.contactPhone?.trim() || null,
+          facebookUrl: data.contactFacebook?.trim() || null,
+          showPhonePublicly: Boolean(current?.showPhone),
+          showFacebookPublicly: Boolean(current?.showFacebook),
+          mapConsent: Boolean(current?.mapConsent),
+          mapMunicipalityId: current?.mapConsent ? matchedLoc.id : null,
+        })
+      );
+
+      if (!res.persisted || !res.publicProfile) {
+        return {
+          persisted: false,
+          error: 'Firestore did not confirm profile persistence.',
+        };
+      }
+
+      const updatedProfile = this.mapPublicProfileDtoToUserProfile(
+        res.publicProfile,
+        res.privateProfile,
+        res.mapMarker
+      );
+      this.upsertUserInSignal(updatedProfile, true);
+      if (this.authService.isAuthenticatedUser() && data.name.trim()) {
+        void this.authService.updateFirebaseDisplayName(data.name.trim());
+      }
+      this.lastFirestoreErrorSignal.set(null);
+      return { persisted: true, value: updatedProfile };
+    } catch (err: unknown) {
+      const errorMsg = this.recordRestError(err, 'profiles/me');
+      return { persisted: false, error: errorMsg };
+    }
+  }
+
+  /**
+   * Creates or updates a Service Request, Service Offer, or Draft in Cloud Firestore via `POST /api/posts`.
+   * Never fakes a save if the backend or Firestore Security Rules reject the write.
+   */
+  async savePostAsync(data: {
+    id?: string | null;
+    type: PostType;
+    title: string;
+    description: string;
+    category: PostCategory;
+    amount?: number | null;
+    status: PostStatus;
+    targetLocationId?: string | null;
+    coverageAreaIds?: string[];
+    optionalPublicAreaDescription?: string | null;
+  }): Promise<PersistenceMutationResult<CleaningPost>> {
+    if (this.isMockActor()) {
+      if (data.id) {
+        this.updatePost(data.id, {
+          type: data.type,
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          amount: data.amount,
+          status: data.status,
+          targetLocationId: data.targetLocationId ?? null,
+          coverageAreaIds: data.coverageAreaIds ?? [],
+          optionalPublicAreaDescription: data.optionalPublicAreaDescription ?? null,
+        });
+        return { persisted: true, value: this.getPostById(data.id) };
+      }
+      const created = this.createPost(data);
+      return { persisted: true, value: created };
+    }
+
+    const user = this.currentUser();
+    const publicationState: 'draft' | 'published' =
+      data.status === 'draft' ? 'draft' : 'published';
+    const lifecycleStatus: 'open' | 'closed' | 'active' | 'archived' =
+      data.type === 'request'
+        ? data.status === 'closed'
+          ? 'closed'
+          : 'open'
+        : data.status === 'archived'
+        ? 'archived'
+        : 'active';
+
+    try {
+      const res = await firstValueFrom(
+        this.privateApi.upsertOwnPost({
+          id: data.id || undefined,
+          postType: data.type,
+          title: data.title.trim(),
+          description: data.description.trim(),
+          cleaningCategory: FRONTEND_TO_BACKEND_CATEGORY[data.category] || 'General House Cleaning',
+          publicationState,
+          lifecycleStatus,
+          targetMunicipalityId: data.type === 'request' ? data.targetLocationId || null : null,
+          coverageAreaIds: data.type === 'offer' ? data.coverageAreaIds || [] : [],
+          priceOrBudget: data.amount != null && data.amount > 0 ? String(data.amount) : null,
+          photoUrls: [],
+          publicAreaDescription: data.optionalPublicAreaDescription?.trim() || null,
+          scheduleNote: null,
+          authorDisplayName:
+            user?.name || this.authService.currentUserDisplayName() || 'LinisGo User',
+          authorProfileTag: user?.tag || 'client',
+        })
+      );
+
+      if (!res.persisted || !res.post) {
+        return {
+          persisted: false,
+          error: 'Firestore did not confirm post persistence.',
+        };
+      }
+
+      const savedPost = this.mapFirestorePostDtoToCleaningPost(res.post);
+      this.mergeLivePostsIntoStore([savedPost], true);
+      this.lastFirestoreErrorSignal.set(null);
+      return { persisted: true, value: savedPost };
+    } catch (err: unknown) {
+      const errorMsg = this.recordRestError(err, 'posts');
+      return { persisted: false, error: errorMsg };
+    }
+  }
+
+  /**
+   * Updates the lifecycle status ('open' | 'closed' | 'active' | 'archived') of an existing post
+   * in Cloud Firestore via `PATCH /api/posts/:postId/lifecycle`.
+   */
+  async changePostStatusAsync(
+    postId: string,
+    nextStatus: PostStatus
+  ): Promise<PersistenceMutationResult<CleaningPost>> {
+    const post = this.getPostById(postId);
+    if (!post) {
+      return { persisted: false, error: 'Post not found.' };
+    }
+
+    if (this.isMockActor()) {
+      this.changePostStatus(postId, nextStatus);
+      return { persisted: true, value: this.getPostById(postId) };
+    }
+
+    const publicationState: 'draft' | 'published' =
+      nextStatus === 'draft' ? 'draft' : 'published';
+    const lifecycleStatus: 'open' | 'closed' | 'active' | 'archived' =
+      post.type === 'request'
+        ? nextStatus === 'closed'
+          ? 'closed'
+          : 'open'
+        : nextStatus === 'archived' || nextStatus === 'closed'
+        ? 'archived'
+        : 'active';
+
+    try {
+      const res = await firstValueFrom(
+        this.privateApi.updateOwnPostLifecycle(postId, lifecycleStatus, publicationState)
+      );
+      if (!res.persisted || !res.post) {
+        return { persisted: false, error: 'Firestore did not confirm status update.' };
+      }
+
+      const updatedPost = this.mapFirestorePostDtoToCleaningPost(res.post);
+      this.mergeLivePostsIntoStore([updatedPost], false);
+      this.lastFirestoreErrorSignal.set(null);
+      return { persisted: true, value: updatedPost };
+    } catch (err: unknown) {
+      const errorMsg = this.recordRestError(err, `posts/${postId}/lifecycle`);
+      return { persisted: false, error: errorMsg };
+    }
   }
 
   private normalizeExistingPosts(rawPosts: any[]): CleaningPost[] {
@@ -374,8 +1115,6 @@ export class PublicDataService {
       const hasTarget = p.targetLocationId !== undefined;
       const hasCoverage = Array.isArray(p.coverageAreaIds);
 
-      // Only backfill canonical seed locations for unmodified baseline seed IDs p1..p5
-      // Never invent locations for user-created records
       if (!hasTarget && !hasCoverage && seedDefaults[p.id]) {
         const def = seedDefaults[p.id];
         return {
@@ -745,7 +1484,6 @@ export class PublicDataService {
     this.persist();
   }
 
-  // --- Audit Log Helpers ---
   addAuditLog(data: {
     actionType: AuditActionType;
     targetType: 'user' | 'post' | 'report' | 'appeal';
@@ -770,7 +1508,6 @@ export class PublicDataService {
     return log;
   }
 
-  // --- Admin Notifications ---
   addAdminNotification(title: string, detail: string): void {
     const item: InAppNotification = {
       id: 'anotif-' + Math.random().toString(36).slice(2, 8),
@@ -805,7 +1542,6 @@ export class PublicDataService {
     this.persist();
   }
 
-  // --- User Notifications Helper ---
   addNotificationForUser(recipientId: string, title: string, detail: string): void {
     const item: InAppNotification = {
       id: 'notif-' + Math.random().toString(36).slice(2, 8),
@@ -819,7 +1555,6 @@ export class PublicDataService {
     this.persist();
   }
 
-  // --- Post Mutation Operations ---
   createPost(data: {
     type: PostType;
     title: string;
@@ -869,9 +1604,14 @@ export class PublicDataService {
 
   updatePost(id: string, data: Partial<CleaningPost>): boolean {
     let found = false;
+    const actorId = this.activeActorId();
     this.postsSignal.update(posts =>
       posts.map(p => {
         if (p.id === id) {
+          // Enforce ownership check so another user cannot edit the first user's posts
+          if (!this.isMockActor() && p.authorId !== actorId) {
+            return p;
+          }
           found = true;
           const nextType = data.type ?? p.type;
           const nextTarget =
@@ -906,6 +1646,10 @@ export class PublicDataService {
   }
 
   changePostStatus(id: string, status: PostStatus): void {
+    if (!this.isMockActor()) {
+      void this.changePostStatusAsync(id, status);
+      return;
+    }
     this.updatePost(id, { status });
   }
 
@@ -913,7 +1657,6 @@ export class PublicDataService {
     this.changePostStatus(id, 'archived');
   }
 
-  // --- Administrator Moderation for Posts ---
   hidePost(postId: string, reason: string): boolean {
     const post = this.getPostById(postId);
     if (!post) return false;
@@ -970,7 +1713,6 @@ export class PublicDataService {
     return true;
   }
 
-  // --- Administrator Moderation for Users ---
   issueUserWarning(userId: string, reason: string): boolean {
     const user = this.getUserById(userId);
     if (!user) return false;
@@ -1029,7 +1771,7 @@ export class PublicDataService {
             suspensionType: type,
             suspensionReason: reason,
             suspendedUntil: until,
-            mapConsent: false, // Hide map pin while suspended
+            mapConsent: false,
             updatedAt: new Date().toISOString().slice(0, 10),
           };
         }
@@ -1098,24 +1840,58 @@ export class PublicDataService {
     return true;
   }
 
-  // --- User Profile & Setting Operations ---
   toggleUserTag(): void {
+    const current = this.currentUser();
+    if (!current) return;
+    const newTag: UserProfileTag = current.tag === 'client' ? 'provider' : 'client';
+
+    if (!this.isMockActor()) {
+      const mapLocLabel = (current.approxLocation?.label || '').toLowerCase();
+      const matchedLoc =
+        ORIENTAL_MINDORO_LOCATIONS.find(l => mapLocLabel.includes(l.name.toLowerCase())) ||
+        ORIENTAL_MINDORO_LOCATIONS[0];
+
+      void firstValueFrom(
+        this.privateApi.updateOwnProfileBundle({
+          displayName: current.name,
+          biography: current.bio,
+          profileTag: newTag,
+          availability: current.available ? 'Available' : 'Unavailable',
+          serviceAreaMunicipalityIds: [matchedLoc.id],
+          phoneNumber: current.contactPhone || null,
+          facebookUrl: current.contactFacebook || null,
+          showPhonePublicly: Boolean(current.showPhone),
+          showFacebookPublicly: Boolean(current.showFacebook),
+          mapConsent: Boolean(current.mapConsent),
+          mapMunicipalityId: current.mapConsent ? matchedLoc.id : null,
+        })
+      )
+        .then(res => {
+          if (res.persisted && res.publicProfile) {
+            const updated = this.mapPublicProfileDtoToUserProfile(
+              res.publicProfile,
+              res.privateProfile,
+              res.mapMarker
+            );
+            this.upsertUserInSignal(updated, true);
+          }
+        })
+        .catch(err => this.recordRestError(err, 'profiles/me'));
+      return;
+    }
+
     const actorId = this.activeActorId();
     this.usersSignal.update(users =>
       users.map(u => {
         if (u.id === actorId) {
-          const newTag: UserProfileTag = u.tag === 'client' ? 'provider' : 'client';
           return { ...u, tag: newTag, updatedAt: new Date().toISOString().slice(0, 10) };
         }
         return u;
       })
     );
-    const newTag = this.currentUser()?.tag;
-    if (newTag) {
-      this.postsSignal.update(posts =>
-        posts.map(p => (p.authorId === actorId ? { ...p, authorTag: newTag } : p))
-      );
-    }
+    this.postsSignal.update(posts =>
+      posts.map(p => (p.authorId === actorId ? { ...p, authorTag: newTag } : p))
+    );
     this.persist();
   }
 
@@ -1140,7 +1916,7 @@ export class PublicDataService {
         posts.map(p => (p.authorId === actorId ? { ...p, authorName: data.name! } : p))
       );
       if (this.authService.isAuthenticatedUser()) {
-        this.authService.updateFirebaseDisplayName(data.name);
+        void this.authService.updateFirebaseDisplayName(data.name);
       }
     }
     this.persist();
@@ -1152,6 +1928,46 @@ export class PublicDataService {
     mapConsent?: boolean;
     approxLocation?: { lat: number; lng: number; label?: string };
   }): void {
+    const current = this.currentUser();
+    if (!this.isMockActor() && current) {
+      const nextShowPhone = data.showPhone ?? current.showPhone;
+      const nextShowFb = data.showFacebook ?? current.showFacebook;
+      const nextMapConsent = data.mapConsent ?? current.mapConsent;
+      const nextApprox = data.approxLocation ?? current.approxLocation;
+      const locLabel = (nextApprox?.label || '').toLowerCase();
+      const matchedLoc =
+        ORIENTAL_MINDORO_LOCATIONS.find(l => locLabel.includes(l.name.toLowerCase())) ||
+        ORIENTAL_MINDORO_LOCATIONS[0];
+
+      void firstValueFrom(
+        this.privateApi.updateOwnProfileBundle({
+          displayName: current.name,
+          biography: current.bio,
+          profileTag: current.tag,
+          availability: current.available ? 'Available' : 'Unavailable',
+          serviceAreaMunicipalityIds: [matchedLoc.id],
+          phoneNumber: current.contactPhone || null,
+          facebookUrl: current.contactFacebook || null,
+          showPhonePublicly: Boolean(nextShowPhone),
+          showFacebookPublicly: Boolean(nextShowFb),
+          mapConsent: Boolean(nextMapConsent),
+          mapMunicipalityId: nextMapConsent ? matchedLoc.id : null,
+        })
+      )
+        .then(res => {
+          if (res.persisted && res.publicProfile) {
+            const updated = this.mapPublicProfileDtoToUserProfile(
+              res.publicProfile,
+              res.privateProfile,
+              res.mapMarker
+            );
+            this.upsertUserInSignal(updated, true);
+          }
+        })
+        .catch(err => this.recordRestError(err, 'profiles/me'));
+      return;
+    }
+
     const actorId = this.activeActorId();
     this.usersSignal.update(users =>
       users.map(u => {
@@ -1175,7 +1991,6 @@ export class PublicDataService {
   reactivateAccount(): void {
     const actorId = this.activeActorId();
     const user = this.currentUser();
-    // Do not allow suspended user to self-reactivate!
     if (user && user.state === 'suspended') {
       return;
     }
@@ -1204,7 +2019,6 @@ export class PublicDataService {
     this.persist();
   }
 
-  // --- Bookmarks / Saved Items ---
   isPostSaved(postId: string): boolean {
     return this.activeSavedPostIds().includes(postId);
   }
@@ -1271,7 +2085,6 @@ export class PublicDataService {
     return saved;
   }
 
-  // --- In-App Notifications for Active User ---
   markNotificationRead(id: string): void {
     this.notificationsSignal.update(list =>
       list.map(n => (n.id === id ? { ...n, read: true } : n))
@@ -1299,7 +2112,6 @@ export class PublicDataService {
     this.addNotificationForUser(actorId, title, detail);
   }
 
-  // --- Reports & Report Moderation ---
   submitReport(data: {
     targetType: 'post' | 'user';
     targetId: string;
@@ -1402,7 +2214,6 @@ export class PublicDataService {
     return found;
   }
 
-  // --- Appeals & Appeal Moderation ---
   submitAppeal(data: {
     targetType: 'post' | 'account';
     targetId: string;
@@ -1523,7 +2334,6 @@ export class PublicDataService {
     return true;
   }
 
-  // --- Accessors ---
   getPostById(id: string): CleaningPost | undefined {
     return this.postsSignal().find(p => p.id === id);
   }

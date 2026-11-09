@@ -10,6 +10,119 @@ import {
 import { ApiConfigService } from './api-config.service';
 import { AuthService } from './auth.service';
 
+export interface FirestorePublicProfileDto {
+  uid: string;
+  displayName: string;
+  biography: string;
+  profilePhotoUrl: string | null;
+  profileTag: 'client' | 'provider';
+  availability: string;
+  serviceAreaMunicipalityIds: string[];
+  publicPhone: string | null;
+  publicFacebookUrl: string | null;
+  visibilityState: 'public' | 'hidden';
+  authorAccountState: string;
+  publicVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FirestorePrivateProfileDto {
+  uid: string;
+  registrationEmail: string;
+  emailVerified: boolean;
+  phoneNumber: string | null;
+  facebookUrl: string | null;
+  showPhonePublicly: boolean;
+  showFacebookPublicly: boolean;
+  mapConsent: boolean;
+  mapMunicipalityId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FirestorePublicMapMarkerDto {
+  uid: string;
+  displayName: string;
+  profileTag: 'client' | 'provider';
+  municipalityId: string;
+  municipalityName: string;
+  approximateLat: number;
+  approximateLng: number;
+  mapConsent: boolean;
+  authorAccountState: string;
+  publicVisible: boolean;
+  updatedAt: string;
+}
+
+export interface FirestorePostDto {
+  id: string;
+  authorUid: string;
+  authorDisplayName: string;
+  authorProfileTag: 'client' | 'provider';
+  postType: 'request' | 'offer';
+  title: string;
+  description: string;
+  cleaningCategory: string;
+  publicationState: 'draft' | 'published';
+  lifecycleStatus: 'open' | 'closed' | 'active' | 'archived';
+  moderationStatus: 'none' | 'flagged' | 'hidden' | 'removed';
+  moderationReferenceId: string | null;
+  authorAccountState: string;
+  publicVisible: boolean;
+  targetMunicipalityId: string | null;
+  coverageAreaIds: string[];
+  priceOrBudget: string | null;
+  photoUrls: string[];
+  publicAreaDescription: string | null;
+  scheduleNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+}
+
+export interface OwnProfileBundleApiResponse {
+  status: 'ok';
+  transport: string;
+  publicProfile: FirestorePublicProfileDto | null;
+  privateProfile: FirestorePrivateProfileDto | null;
+  accountState: { state: string } | null;
+  mapMarker: FirestorePublicMapMarkerDto | null;
+}
+
+export interface UpsertProfilePayload {
+  displayName: string;
+  biography: string;
+  profilePhotoUrl?: string | null;
+  profileTag: 'client' | 'provider';
+  availability: string;
+  serviceAreaMunicipalityIds?: string[];
+  phoneNumber?: string | null;
+  facebookUrl?: string | null;
+  showPhonePublicly?: boolean;
+  showFacebookPublicly?: boolean;
+  mapConsent?: boolean;
+  mapMunicipalityId?: string | null;
+}
+
+export interface UpsertPostPayload {
+  id?: string;
+  postType: 'request' | 'offer';
+  title: string;
+  description: string;
+  cleaningCategory: string;
+  publicationState: 'draft' | 'published';
+  lifecycleStatus: 'open' | 'closed' | 'active' | 'archived';
+  targetMunicipalityId?: string | null;
+  coverageAreaIds?: string[];
+  priceOrBudget?: string | null;
+  photoUrls?: string[];
+  publicAreaDescription?: string | null;
+  scheduleNote?: string | null;
+  authorDisplayName?: string;
+  authorProfileTag?: 'client' | 'provider';
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -36,10 +149,107 @@ export class PrivateApiService {
   }
 
   /**
+   * Calls `GET /api/profiles/me` to load the signed-in user's public + private profile from Cloud Firestore.
+   */
+  getOwnProfileBundle(): Observable<OwnProfileBundleApiResponse> {
+    return this.http.get<OwnProfileBundleApiResponse>(
+      this.apiConfig.buildEndpointUrl('/profiles/me')
+    );
+  }
+
+  /**
+   * Calls `PUT /api/profiles/me` to persist the signed-in user's profile to Cloud Firestore.
+   */
+  updateOwnProfileBundle(payload: UpsertProfilePayload): Observable<{
+    status: 'ok';
+    persisted: boolean;
+    publicProfile: FirestorePublicProfileDto;
+    privateProfile: FirestorePrivateProfileDto;
+    mapMarker: FirestorePublicMapMarkerDto | null;
+  }> {
+    return this.http.put<{
+      status: 'ok';
+      persisted: boolean;
+      publicProfile: FirestorePublicProfileDto;
+      privateProfile: FirestorePrivateProfileDto;
+      mapMarker: FirestorePublicMapMarkerDto | null;
+    }>(this.apiConfig.buildEndpointUrl('/profiles/me'), payload);
+  }
+
+  /**
+   * Calls `GET /api/posts` to list published public posts.
+   */
+  listPublicPosts(): Observable<{ status: 'ok'; posts: FirestorePostDto[] }> {
+    return this.http.get<{ status: 'ok'; posts: FirestorePostDto[] }>(
+      this.apiConfig.buildEndpointUrl('/posts')
+    );
+  }
+
+  /**
+   * Calls `GET /api/profiles/public` to list discoverable public profiles and approximate map markers.
+   */
+  listPublicProfiles(): Observable<{
+    status: 'ok';
+    profiles: FirestorePublicProfileDto[];
+    mapMarkers: FirestorePublicMapMarkerDto[];
+  }> {
+    return this.http.get<{
+      status: 'ok';
+      profiles: FirestorePublicProfileDto[];
+      mapMarkers: FirestorePublicMapMarkerDto[];
+    }>(this.apiConfig.buildEndpointUrl('/profiles/public'));
+  }
+
+  /**
+   * Calls `GET /api/posts/mine` to list all posts authored by the signed-in user (including drafts/closed/archived).
+   */
+  listOwnPosts(): Observable<{ status: 'ok'; posts: FirestorePostDto[] }> {
+    return this.http.get<{ status: 'ok'; posts: FirestorePostDto[] }>(
+      this.apiConfig.buildEndpointUrl('/posts/mine')
+    );
+  }
+
+  /**
+   * Calls `POST /api/posts` to create or update a signed-in user's post in Cloud Firestore.
+   */
+  upsertOwnPost(payload: UpsertPostPayload): Observable<{
+    status: 'ok';
+    persisted: boolean;
+    post: FirestorePostDto;
+  }> {
+    return this.http.post<{
+      status: 'ok';
+      persisted: boolean;
+      post: FirestorePostDto;
+    }>(this.apiConfig.buildEndpointUrl('/posts'), payload);
+  }
+
+  /**
+   * Calls `PATCH /api/posts/:postId/lifecycle` to close/open a request, archive/restore an offer, or publish a draft.
+   */
+  updateOwnPostLifecycle(
+    postId: string,
+    lifecycleStatus: 'open' | 'closed' | 'active' | 'archived',
+    publicationState?: 'draft' | 'published'
+  ): Observable<{
+    status: 'ok';
+    persisted: boolean;
+    post: FirestorePostDto;
+  }> {
+    return this.http.patch<{
+      status: 'ok';
+      persisted: boolean;
+      post: FirestorePostDto;
+    }>(this.apiConfig.buildEndpointUrl(`/posts/${encodeURIComponent(postId)}/lifecycle`), {
+      lifecycleStatus,
+      publicationState,
+    });
+  }
+
+  /**
    * Waits for Firebase Authentication initialization to complete, checks `GET /api/health`,
    * and ONLY calls `GET /api/auth/me` if a Firebase user is currently signed in
    * (or if `forceUnauthenticatedRequest === true` is explicitly passed for a negative security test).
-   * If the user is signed out, displays "Sign in required" instead of performing the protected request.
    */
   async runAuthIntegrationDiagnostic(
     forceUnauthenticatedRequest = false
@@ -48,7 +258,6 @@ export class PrivateApiService {
     const testedAt = new Date().toISOString();
     const endpointTested = this.apiConfig.buildEndpointUrl('/auth/me');
 
-    // 1. Wait until Firebase Authentication initialization is complete
     await this.authService.waitForAuthInit();
 
     let healthData: HealthApiResponse | null = null;
@@ -86,7 +295,6 @@ export class PrivateApiService {
       return unreachableResult;
     }
 
-    // 2. If the user is signed out, display "Sign in required" instead of performing GET /api/auth/me
     if (!this.authService.isAuthenticatedUser() && !forceUnauthenticatedRequest) {
       const signInRequiredResult: AuthIntegrationDiagnosticResult = {
         testedAt,
@@ -106,7 +314,6 @@ export class PrivateApiService {
       return signInRequiredResult;
     }
 
-    // 3. If the user is signed in, ensure a fresh Firebase ID token is obtained before calling GET /api/auth/me
     if (this.authService.isAuthenticatedUser()) {
       await this.authService.getIdToken(false);
     }

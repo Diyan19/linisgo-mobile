@@ -12,11 +12,16 @@ import {
   FirestoreRepositoryBundle,
 } from './repositories/firestore.repository.js';
 import { defaultTokenVerifier } from './services/auth-verification.service.js';
+import {
+  defaultFirestoreUserRestService,
+  FirestoreUserRestService,
+} from './services/firestore-user-rest.service.js';
 import { TokenVerifier } from './types/auth.types.js';
 
 export interface CreateAppOptions {
   tokenVerifier?: TokenVerifier;
   firestoreRepositories?: FirestoreRepositoryBundle;
+  firestoreUserRestService?: FirestoreUserRestService;
   allowedOrigins?: string[];
   enableRateLimit?: boolean;
 }
@@ -29,8 +34,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const app = express();
   const verifier = options.tokenVerifier ?? defaultTokenVerifier;
   const repos = options.firestoreRepositories ?? defaultFirestoreRepositories;
+  const userRestService = options.firestoreUserRestService ?? defaultFirestoreUserRestService;
   const allowedOrigins = options.allowedOrigins ?? envConfig.allowedOrigins;
   const enableRateLimit = options.enableRateLimit ?? true;
+
+  // Trust proxy for reverse-proxy deployments (e.g., Cloud Run / Google AI Studio / Nginx)
+  // so Express and express-rate-limit correctly identify clients behind proxies
+  app.set('trust proxy', 1);
 
   // Disable X-Powered-By and apply Helmet security headers
   app.disable('x-powered-by');
@@ -74,6 +84,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
       max: envConfig.rateLimitMaxRequests,
       standardHeaders: true,
       legacyHeaders: false,
+      validate: {
+        xForwardedForHeader: false,
+        forwardedHeader: false,
+      },
       message: {
         status: 'error',
         code: 'RATE_LIMIT_EXCEEDED',
@@ -87,7 +101,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   // API Routes
   app.use('/api/health', createHealthRouter());
   app.use('/api/auth', createAuthRouter(verifier));
-  app.use('/api', createFirestorePreparedRouter(verifier, repos));
+  app.use('/api', createFirestorePreparedRouter(verifier, repos, userRestService));
 
   // 404 & Centralized Error Handling
   app.use(notFoundHandler);

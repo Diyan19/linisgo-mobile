@@ -65,7 +65,6 @@ export class CreatePostPage implements OnInit {
   description = '';
   amount: number | null = null;
 
-  // Structured Location Fields
   targetLocationId: string | null = null;
   coverageAreaIds: string[] = [];
   selectedBarangay = '';
@@ -75,6 +74,7 @@ export class CreatePostPage implements OnInit {
   errorMessage = '';
   toastMessage = '';
   isToastOpen = false;
+  isSubmitting = false;
 
   constructor() {
     addIcons({
@@ -106,6 +106,9 @@ export class CreatePostPage implements OnInit {
           this.coverageAreaIds = Array.isArray(post.coverageAreaIds) ? [...post.coverageAreaIds] : [];
           this.optionalPublicAreaDescription = post.optionalPublicAreaDescription || '';
           this.selectedBarangay = '';
+        } else if (post && post.authorId !== this.dataService.activeActorId()) {
+          this.errorMessage = 'You can only edit posts that belong to your account.';
+          this.editId = null;
         }
       } else {
         this.editingExistingStatus = null;
@@ -194,7 +197,9 @@ export class CreatePostPage implements OnInit {
 
   readonly isSuspended = () => this.dataService.currentUser()?.state === 'suspended';
 
-  onPublish(): void {
+  async onPublish(): Promise<void> {
+    if (this.isSubmitting) return;
+
     if (this.isSuspended()) {
       this.errorMessage = 'Your account is suspended. Publishing posts is restricted. Please submit an appeal.';
       return;
@@ -217,45 +222,45 @@ export class CreatePostPage implements OnInit {
     }
 
     const cleanOptionalDesc = this.optionalPublicAreaDescription.trim() || null;
+    const nextStatus: PostStatus =
+      this.editId && this.editingExistingStatus && this.editingExistingStatus !== 'draft'
+        ? this.editingExistingStatus
+        : this.postType === 'request'
+        ? 'open'
+        : 'active';
 
-    if (this.editId) {
-      const nextStatus: PostStatus =
-        this.editingExistingStatus === 'draft'
-          ? this.postType === 'request'
-            ? 'open'
-            : 'active'
-          : this.editingExistingStatus || (this.postType === 'request' ? 'open' : 'active');
+    this.isSubmitting = true;
+    this.errorMessage = '';
 
-      this.dataService.updatePost(this.editId, {
-        type: this.postType,
-        title: this.title.trim(),
-        description: this.description.trim(),
-        category: this.category,
-        amount: this.amount,
-        status: nextStatus,
-        targetLocationId: this.postType === 'request' ? this.targetLocationId : null,
-        coverageAreaIds: this.postType === 'offer' ? [...this.coverageAreaIds] : [],
-        optionalPublicAreaDescription: cleanOptionalDesc,
-      });
-    } else {
-      this.dataService.createPost({
-        type: this.postType,
-        title: this.title.trim(),
-        description: this.description.trim(),
-        category: this.category,
-        amount: this.amount,
-        status: this.postType === 'request' ? 'open' : 'active',
-        targetLocationId: this.postType === 'request' ? this.targetLocationId : null,
-        coverageAreaIds: this.postType === 'offer' ? [...this.coverageAreaIds] : [],
-        optionalPublicAreaDescription: cleanOptionalDesc,
-      });
+    const result = await this.dataService.savePostAsync({
+      id: this.editId,
+      type: this.postType,
+      title: this.title.trim(),
+      description: this.description.trim(),
+      category: this.category,
+      amount: this.amount,
+      status: nextStatus,
+      targetLocationId: this.postType === 'request' ? this.targetLocationId : null,
+      coverageAreaIds: this.postType === 'offer' ? [...this.coverageAreaIds] : [],
+      optionalPublicAreaDescription: cleanOptionalDesc,
+    });
+
+    this.isSubmitting = false;
+
+    if (!result.persisted) {
+      this.errorMessage =
+        result.error ||
+        'Could not publish post to Cloud Firestore. Ensure the updated firestore.rules are published in the Firebase Console.';
+      return;
     }
 
     this.resetForm();
     this.router.navigate(['/user/my-posts']);
   }
 
-  onSaveDraft(): void {
+  async onSaveDraft(): Promise<void> {
+    if (this.isSubmitting) return;
+
     if (this.isSuspended()) {
       this.errorMessage = 'Your account is suspended. Saving drafts is restricted.';
       return;
@@ -268,30 +273,29 @@ export class CreatePostPage implements OnInit {
 
     const cleanOptionalDesc = this.optionalPublicAreaDescription.trim() || null;
 
-    if (this.editId) {
-      this.dataService.updatePost(this.editId, {
-        type: this.postType,
-        title: this.title.trim(),
-        description: this.description.trim() || 'Draft description...',
-        category: this.category,
-        amount: this.amount,
-        status: 'draft',
-        targetLocationId: this.postType === 'request' ? this.targetLocationId : null,
-        coverageAreaIds: this.postType === 'offer' ? [...this.coverageAreaIds] : [],
-        optionalPublicAreaDescription: cleanOptionalDesc,
-      });
-    } else {
-      this.dataService.createPost({
-        type: this.postType,
-        title: this.title.trim(),
-        description: this.description.trim() || 'Draft description...',
-        category: this.category,
-        amount: this.amount,
-        status: 'draft',
-        targetLocationId: this.postType === 'request' ? this.targetLocationId : null,
-        coverageAreaIds: this.postType === 'offer' ? [...this.coverageAreaIds] : [],
-        optionalPublicAreaDescription: cleanOptionalDesc,
-      });
+    this.isSubmitting = true;
+    this.errorMessage = '';
+
+    const result = await this.dataService.savePostAsync({
+      id: this.editId,
+      type: this.postType,
+      title: this.title.trim(),
+      description: this.description.trim() || 'Draft description...',
+      category: this.category,
+      amount: this.amount,
+      status: 'draft',
+      targetLocationId: this.postType === 'request' ? this.targetLocationId : null,
+      coverageAreaIds: this.postType === 'offer' ? [...this.coverageAreaIds] : [],
+      optionalPublicAreaDescription: cleanOptionalDesc,
+    });
+
+    this.isSubmitting = false;
+
+    if (!result.persisted) {
+      this.errorMessage =
+        result.error ||
+        'Could not save draft to Cloud Firestore. Ensure the updated firestore.rules are published in the Firebase Console.';
+      return;
     }
 
     this.resetForm();

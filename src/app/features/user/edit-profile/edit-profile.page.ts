@@ -39,6 +39,7 @@ export class EditProfilePage implements OnInit {
   private readonly router = inject(Router);
 
   feedbackMessage = '';
+  errorMessage = '';
   isSaving = false;
 
   profileForm = new FormGroup({
@@ -69,16 +70,18 @@ export class EditProfilePage implements OnInit {
     }
   }
 
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
     if (this.profileForm.invalid) {
       this.profileForm.markAllAsTouched();
       return;
     }
 
     this.isSaving = true;
+    this.feedbackMessage = '';
+    this.errorMessage = '';
     const values = this.profileForm.value;
 
-    this.dataService.updateUserProfile({
+    const result = await this.dataService.saveUserProfileAsync({
       name: values.name || 'User',
       bio: values.bio || '',
       contactPhone: values.contactPhone || '',
@@ -86,11 +89,20 @@ export class EditProfilePage implements OnInit {
       available: !!values.available,
     });
 
-    this.feedbackMessage = 'Profile updated successfully!';
+    this.isSaving = false;
+
+    if (!result.persisted) {
+      this.errorMessage =
+        result.error ||
+        'Could not save profile to Cloud Firestore. Ensure the updated firestore.rules are published in the Firebase Console.';
+      this.feedbackMessage = this.errorMessage;
+      return;
+    }
+
+    this.feedbackMessage = 'Profile saved to Cloud Firestore!';
     setTimeout(() => {
-      this.isSaving = false;
       this.router.navigate(['/user/tabs/profile']);
-    }, 1000);
+    }, 800);
   }
 
   onCancel(): void {

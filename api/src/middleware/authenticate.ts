@@ -58,6 +58,7 @@ export function createAuthenticateMiddleware(
       const verifiedIdentity = await verifier.verifyBearerToken(idToken);
 
       req.authenticatedUser = verifiedIdentity;
+      req.verifiedBearerToken = idToken;
       next();
     } catch (err) {
       next(err);

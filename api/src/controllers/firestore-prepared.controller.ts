@@ -16,6 +16,10 @@ import {
   FirestoreRepositoryBundle,
 } from '../repositories/firestore.repository.js';
 import {
+  defaultFirestoreUserRestService,
+  FirestoreUserRestService,
+} from '../services/firestore-user-rest.service.js';
+import {
   buildDeterministicSavedPostBookmark,
   buildDeterministicSavedUserBookmark,
   validateAccountStateTransition,
@@ -29,14 +33,18 @@ import {
   AccountLifecycleState,
   CreateAppealInput,
   CreateReportInput,
+  DescriptiveProfileTag,
+  PostLifecycleStatus,
   PostModerationStatus,
+  PostPublicationState,
   PostType,
   UpdateProfileInput,
   UpsertPostInput,
 } from '../types/firestore-schema.types.js';
 
 export function createFirestorePreparedControllers(
-  repos: FirestoreRepositoryBundle = defaultFirestoreRepositories
+  repos: FirestoreRepositoryBundle = defaultFirestoreRepositories,
+  userRestService: FirestoreUserRestService = defaultFirestoreUserRestService
 ) {
   return {
     /**
@@ -54,8 +62,8 @@ export function createFirestorePreparedControllers(
 
     /**
      * GET /api/schema/status
-     * Reports Task 1.2A & Task 1.2B Stage 2 Firestore schema preparation, database metadata,
-     * canonical top-level collections, security rules, and credential status.
+     * Reports Firestore schema preparation, database metadata, canonical top-level collections,
+     * user-token REST transport status, and security trade-offs.
      */
     async getSchemaPreparationStatus(_req: Request, res: Response): Promise<void> {
       const [firestoreReady, diag] = await Promise.all([
@@ -73,6 +81,9 @@ export function createFirestorePreparedControllers(
         firestoreMode: envConfig.firestoreMode,
         billingPlan: 'Spark Free Only',
         firestorePersistenceStatus: firestoreReady ? 'working' : 'blocked',
+        firestoreUserTokenRestEnabled: true,
+        firestoreSecurityTradeOff:
+          'User-token Firestore REST requests are governed by Firestore Security Rules under request.auth.uid rather than privileged Admin SDK IAM credentials. This does not enforce an exclusive backend-only write boundary; firestore.rules independently enforces ownership, field allowlists, moderation locks, and account-state restrictions.',
         firestoreReadProbeErrorCode: diag.firestoreReadProbeErrorCode,
         persistedWritesEnabled: firestoreReady,
         smokeTestAccessPolicy: {
@@ -93,7 +104,7 @@ export function createFirestorePreparedControllers(
         },
         blockerExplanation: firestoreReady
           ? null
-          : 'Cloud Firestore server operations remain BLOCKED in Google AI Studio because the hosting identity does not hold privileged IAM access to project "linisgo-mobile". Configure keyless Application Default Credentials with service-account impersonation locally on Windows to enable authorized Firestore access.',
+          : 'Privileged Firebase Admin SDK server writes remain blocked in Google AI Studio because the hosting identity does not hold IAM roles on "linisgo-mobile". Core user profiles and posts use the authenticated Firestore v1 REST API governed by least-privilege firestore.rules.',
       });
     },
 
@@ -111,6 +122,128 @@ export function createFirestorePreparedControllers(
     },
 
     /**
+     * GET /api/profiles/me
+     * Loads the signed-in user's publicProfile, privateProfile, accountState, and mapMarker.
+     */
+    async getOwnProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+      const user = requireVerifiedIdentity(req);
+      const adminReady = await repos.isFirestoreReady();
+
+      if (adminReady) {
+        const [publicProfile, privateProfile, accountState] = await Promise.all([
+          repos.profiles.getPublicProfileByUid(user.uid),
+          repos.profiles.getPrivateProfileByUid(user.uid),
+          repos.accountStates.getAccountStateByUid(user.uid),
+        ]);
+        res.status(200).json({
+          status: 'ok',
+          transport: 'admin_sdk',
+          publicProfile,
+          privateProfile,
+          accountState,
+          mapMarker: null,
+        });
+        return;
+      }
+
+      if (!req.verifiedBearerToken) {
+        throw new ApiHttpError(
+          'FIRESTORE_CREDENTIALS_BLOCKED',
+          'Missing verified Firebase user ID token for Firestore REST access.',
+          503
+        );
+      }
+
+      const bundle = await userRestService.getOwnProfileBundle(user.uid, req.verifiedBearerToken);
+      res.status(200).json({
+        status: 'ok',
+        transport: 'firestore_user_rest',
+        ...bundle,
+      });
+    },
+
+    /**
+     * GET /api/profiles/public
+     * Lists publicly discoverable user profiles and opt-in approximate map markers.
+     */
+    async listPublicProfiles(_req: Request, res: Response): Promise<void> {
+      const adminReady = await repos.isFirestoreReady();
+      if (adminReady) {
+        const profiles = await repos.profiles.listPublicProfiles();
+        res.status(200).json({
+          status: 'ok',
+          transport: 'admin_sdk',
+          profiles,
+          mapMarkers: [],
+        });
+        return;
+      }
+
+      const [profiles, mapMarkers] = await Promise.all([
+        userRestService.getPublicProfilesList(50),
+        userRestService.getPublicMapMarkersList(50),
+      ]);
+      res.status(200).json({
+        status: 'ok',
+        transport: 'firestore_user_rest',
+        profiles,
+        mapMarkers,
+      });
+    },
+
+    /**
+     * PUT /api/profiles/me
+     * Validates public/private profile split and independent opt-in map consent before persisting
+     * via Admin SDK (if ready) or authenticated Firestore v1 REST API.
+     */
+    async updateOwnProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+      const user = requireVerifiedIdentity(req);
+      const input = (req.body || {}) as UpdateProfileInput;
+
+      const validation = validateAndSplitUserProfile({
+        uid: user.uid,
+        registrationEmail: user.email || '',
+        emailVerified: user.emailVerified,
+        accountState: 'active',
+        input,
+      });
+
+      if (!validation.valid || !validation.value) {
+        throw new ApiHttpError('VALIDATION_ERROR', validation.errors.join(' '), 400);
+      }
+
+      const adminReady = await repos.isFirestoreReady();
+      if (adminReady || !req.verifiedBearerToken) {
+        const result = await repos.profiles.upsertUserProfile(
+          validation.value.publicProfile,
+          validation.value.privateProfile,
+          validation.value.mapMarker
+        );
+        res.status(200).json({
+          status: 'ok',
+          persisted: true,
+          transport: 'admin_sdk',
+          ...result,
+        });
+        return;
+      }
+
+      const result = await userRestService.upsertOwnProfileBundle({
+        uid: user.uid,
+        bearerToken: req.verifiedBearerToken,
+        publicProfile: validation.value.publicProfile,
+        privateProfile: validation.value.privateProfile,
+        mapMarker: validation.value.mapMarker,
+      });
+      res.status(200).json({
+        status: 'ok',
+        persisted: true,
+        transport: 'firestore_user_rest',
+        ...result,
+      });
+    },
+
+    /**
      * GET /api/posts
      * Public post discovery endpoint with Oriental Mindoro location validation.
      */
@@ -118,6 +251,7 @@ export function createFirestorePreparedControllers(
       const postType = req.query['postType'] as PostType | undefined;
       const targetMunicipalityId = req.query['targetMunicipalityId'] as string | undefined;
       const coverageMunicipalityId = req.query['coverageMunicipalityId'] as string | undefined;
+      const cleaningCategory = req.query['cleaningCategory'] as string | undefined;
 
       if (postType && postType !== 'request' && postType !== 'offer') {
         throw new ApiHttpError(
@@ -142,32 +276,111 @@ export function createFirestorePreparedControllers(
         );
       }
 
-      const posts = await repos.posts.listPosts({
+      const adminReady = await repos.isFirestoreReady();
+      if (adminReady) {
+        const posts = await repos.posts.listPosts({
+          postType,
+          targetMunicipalityId,
+          coverageMunicipalityId,
+          cleaningCategory,
+          includeNonPublicForOwnerOrAdmin: false,
+        });
+        res.status(200).json({ status: 'ok', transport: 'admin_sdk', posts });
+        return;
+      }
+
+      const posts = await userRestService.listPublicPosts({
         postType,
         targetMunicipalityId,
         coverageMunicipalityId,
-        includeNonPublicForOwnerOrAdmin: false,
+        cleaningCategory,
+        limit: 50,
       });
-      res.status(200).json({ status: 'ok', posts });
+      res.status(200).json({ status: 'ok', transport: 'firestore_user_rest', posts });
+    },
+
+    /**
+     * GET /api/posts/mine
+     * Lists all posts authored by the signed-in user (including drafts, closed requests, archived offers).
+     */
+    async listOwnPosts(req: AuthenticatedRequest, res: Response): Promise<void> {
+      const user = requireVerifiedIdentity(req);
+      const adminReady = await repos.isFirestoreReady();
+
+      if (adminReady) {
+        const posts = await repos.posts.listPosts({
+          authorUid: user.uid,
+          includeNonPublicForOwnerOrAdmin: true,
+        });
+        res.status(200).json({ status: 'ok', transport: 'admin_sdk', posts });
+        return;
+      }
+
+      if (!req.verifiedBearerToken) {
+        throw new ApiHttpError(
+          'FIRESTORE_CREDENTIALS_BLOCKED',
+          'Missing verified Firebase user ID token for Firestore REST access.',
+          503
+        );
+      }
+
+      const posts = await userRestService.listOwnPosts(user.uid, req.verifiedBearerToken, 50);
+      res.status(200).json({ status: 'ok', transport: 'firestore_user_rest', posts });
+    },
+
+    /**
+     * GET /api/posts/:postId
+     * Fetches a single post by ID.
+     */
+    async getPostById(req: AuthenticatedRequest, res: Response): Promise<void> {
+      const postId = String(req.params['postId'] || '').trim();
+      if (!postId) {
+        throw new ApiHttpError('VALIDATION_ERROR', 'postId is required.', 400);
+      }
+
+      const adminReady = await repos.isFirestoreReady();
+      if (adminReady) {
+        const post = await repos.posts.getPostById(postId);
+        if (!post) {
+          throw new ApiHttpError('NOT_FOUND', `Post "${postId}" was not found.`, 404);
+        }
+        res.status(200).json({ status: 'ok', transport: 'admin_sdk', post });
+        return;
+      }
+
+      const post = await userRestService.getPostById(postId, req.verifiedBearerToken);
+      if (!post) {
+        throw new ApiHttpError('NOT_FOUND', `Post "${postId}" was not found.`, 404);
+      }
+      res.status(200).json({ status: 'ok', transport: 'firestore_user_rest', post });
     },
 
     /**
      * POST /api/posts
-     * Validates Service Request / Service Offer / Draft schema first, then delegates to Firestore repository.
+     * Validates Service Request / Service Offer / Draft schema first, then persists via Admin SDK
+     * or authenticated Firestore v1 REST API.
      */
     async createOrUpdatePost(req: AuthenticatedRequest, res: Response): Promise<void> {
       const user = requireVerifiedIdentity(req);
       const input = (req.body || {}) as UpsertPostInput & {
-        simulatedAccountState?: AccountLifecycleState;
+        authorDisplayName?: string;
+        authorProfileTag?: DescriptiveProfileTag;
       };
 
       const effectiveAccountState: AccountLifecycleState = 'active';
       assertAccountStatePermitsAction(effectiveAccountState, 'publish_or_mutate');
 
+      const authorProfileTag: DescriptiveProfileTag =
+        input.authorProfileTag === 'provider' ? 'provider' : 'client';
+      const authorDisplayName =
+        (typeof input.authorDisplayName === 'string' && input.authorDisplayName.trim()) ||
+        user.displayName ||
+        'LinisGo User';
+
       const validation = validateAndBuildPostDocument({
         authorUid: user.uid,
-        authorDisplayName: user.displayName || 'LinisGo User',
-        authorProfileTag: 'client',
+        authorDisplayName,
+        authorProfileTag,
         authorAccountState: effectiveAccountState,
         input,
       });
@@ -176,36 +389,83 @@ export function createFirestorePreparedControllers(
         throw new ApiHttpError('VALIDATION_ERROR', validation.errors.join(' '), 400);
       }
 
-      const saved = await repos.posts.upsertPost(validation.value);
-      res.status(201).json({ status: 'ok', persisted: true, post: saved });
+      const adminReady = await repos.isFirestoreReady();
+      if (adminReady || !req.verifiedBearerToken) {
+        const saved = await repos.posts.upsertPost(validation.value);
+        res.status(201).json({
+          status: 'ok',
+          persisted: true,
+          transport: 'admin_sdk',
+          post: saved,
+        });
+        return;
+      }
+
+      const saved = await userRestService.upsertOwnPost({
+        uid: user.uid,
+        bearerToken: req.verifiedBearerToken,
+        post: validation.value,
+      });
+      res.status(201).json({
+        status: 'ok',
+        persisted: true,
+        transport: 'firestore_user_rest',
+        post: saved,
+      });
     },
 
     /**
-     * PUT /api/profiles/me
-     * Validates public/private profile split and independent opt-in map consent before calling Firestore repository.
+     * PATCH /api/posts/:postId/lifecycle
+     * Updates an owner's post lifecycle ('open' | 'closed' for Request; 'active' | 'archived' for Offer)
+     * or publishes a draft ('publicationState': 'published').
      */
-    async updateOwnProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+    async updateOwnPostLifecycle(req: AuthenticatedRequest, res: Response): Promise<void> {
       const user = requireVerifiedIdentity(req);
-      const input = (req.body || {}) as UpdateProfileInput;
+      const postId = String(req.params['postId'] || '').trim();
+      const body = (req.body || {}) as {
+        lifecycleStatus?: PostLifecycleStatus;
+        publicationState?: PostPublicationState;
+      };
 
-      const validation = validateAndSplitUserProfile({
-        uid: user.uid,
-        registrationEmail: user.email || '',
-        emailVerified: user.emailVerified,
-        accountState: 'active',
-        input,
-      });
-
-      if (!validation.valid || !validation.value) {
-        throw new ApiHttpError('VALIDATION_ERROR', validation.errors.join(' '), 400);
+      if (!postId || !body.lifecycleStatus) {
+        throw new ApiHttpError(
+          'VALIDATION_ERROR',
+          'postId and lifecycleStatus are required.',
+          400
+        );
       }
 
-      const result = await repos.profiles.upsertUserProfile(
-        validation.value.publicProfile,
-        validation.value.privateProfile,
-        validation.value.mapMarker
-      );
-      res.status(200).json({ status: 'ok', persisted: true, ...result });
+      const adminReady = await repos.isFirestoreReady();
+      if (adminReady || !req.verifiedBearerToken) {
+        await repos.posts.updatePostLifecycle(
+          postId,
+          body.publicationState ?? 'published',
+          body.lifecycleStatus,
+          body.lifecycleStatus === 'open' || body.lifecycleStatus === 'active'
+        );
+        const updated = await repos.posts.getPostById(postId);
+        res.status(200).json({
+          status: 'ok',
+          persisted: true,
+          transport: 'admin_sdk',
+          post: updated,
+        });
+        return;
+      }
+
+      const updated = await userRestService.updateOwnPostLifecycle({
+        uid: user.uid,
+        bearerToken: req.verifiedBearerToken,
+        postId,
+        publicationState: body.publicationState,
+        lifecycleStatus: body.lifecycleStatus,
+      });
+      res.status(200).json({
+        status: 'ok',
+        persisted: true,
+        transport: 'firestore_user_rest',
+        post: updated,
+      });
     },
 
     /**

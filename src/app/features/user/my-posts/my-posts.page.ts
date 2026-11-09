@@ -83,13 +83,13 @@ export class MyPostsPage {
     return getPostLocationSummary(post);
   }
 
-  togglePostStatus(post: CleaningPost): void {
+  async togglePostStatus(post: CleaningPost): Promise<void> {
     const oldStatus = post.status;
     let nextStatus = post.status;
 
     if (oldStatus === 'open') nextStatus = 'closed';
     else if (oldStatus === 'closed') nextStatus = 'open';
-    else if (oldStatus === 'active') nextStatus = 'closed';
+    else if (oldStatus === 'active') nextStatus = 'archived';
     else if (oldStatus === 'draft' || oldStatus === 'archived') {
       const check = validatePostLocationForPublish(post);
       if (!check.valid) {
@@ -99,23 +99,36 @@ export class MyPostsPage {
       nextStatus = post.type === 'request' ? 'open' : 'active';
     }
 
-    this.dataService.changePostStatus(post.id, nextStatus);
+    const res = await this.dataService.changePostStatusAsync(post.id, nextStatus);
+    if (!res.persisted) {
+      this.showToast(res.error || 'Failed to update post status in Cloud Firestore.');
+      return;
+    }
     this.showToast(`Post status changed from ${oldStatus} to ${nextStatus}.`);
   }
 
-  archivePost(post: CleaningPost): void {
-    this.dataService.archivePost(post.id);
+  async archivePost(post: CleaningPost): Promise<void> {
+    const res = await this.dataService.changePostStatusAsync(post.id, 'archived');
+    if (!res.persisted) {
+      this.showToast(res.error || 'Failed to archive post in Cloud Firestore.');
+      return;
+    }
     this.showToast(`Post "${post.title}" moved to archive.`);
   }
 
-  restorePost(post: CleaningPost): void {
+  async restorePost(post: CleaningPost): Promise<void> {
     const check = validatePostLocationForPublish(post);
     if (!check.valid) {
       this.showToast(check.error || 'Please edit this post to select a location before restoring to active status.');
       return;
     }
-    this.dataService.changePostStatus(post.id, post.type === 'request' ? 'open' : 'active');
-    this.showToast(`Post "${post.title}" restored to active status.`);
+    const targetStatus = post.type === 'request' ? 'open' : 'active';
+    const res = await this.dataService.changePostStatusAsync(post.id, targetStatus);
+    if (!res.persisted) {
+      this.showToast(res.error || 'Failed to restore post in Cloud Firestore.');
+      return;
+    }
+    this.showToast(`Post "${post.title}" restored to ${targetStatus} status.`);
   }
 
   private showToast(msg: string): void {
